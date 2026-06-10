@@ -6,6 +6,7 @@ When a project accumulates many Claude Code skills (global, project, plugins), t
 
 1. **Indexes every skill** available to your project (project `.claude/skills/`, user `~/.claude/skills/`, agent `~/.agents/skills/`, enabled plugins) into a local SQLite database of **atomic rules** with category, priority and trigger keywords.
 2. **Injects the matching rules into every prompt** via a `UserPromptSubmit` hook: your request is categorized in ~50 ms (offline, FTS5/BM25 — no API call) and a compact checklist of the applicable rules is added to Claude's context. Guaranteed — Claude can't forget to check.
+   In **plan mode**, a second hook fires when you approve the plan (`PostToolUse` on `ExitPlanMode`) and matches against the plan text itself — so work scoped *after* a vague prompt still gets its rules. Already initialized before this feature existed? Re-run `skillsdb init` to add the plan hook.
 3. **Exposes MCP tools** (`skillsdb_match`, `skillsdb_rule_detail`, …) so Claude can query the rules database mid-task.
 4. **Stays current**: content-hash sync re-extracts only changed skills; the hook detects stale files and refreshes in the background.
 

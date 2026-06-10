@@ -5,7 +5,10 @@ import type { MatchedRule } from './matcher.js';
  * Grouped by category, one line per rule, with a pointer to the MCP tools
  * for full rule text.
  */
-export function formatRulesBlock(rules: MatchedRule[], opts: { stale?: boolean } = {}): string {
+export function formatRulesBlock(
+  rules: MatchedRule[],
+  opts: { stale?: boolean; heading?: 'prompt' | 'plan' } = {},
+): string {
   if (rules.length === 0) return '';
 
   const byCategory = new Map<string, MatchedRule[]>();
@@ -16,7 +19,11 @@ export function formatRulesBlock(rules: MatchedRule[], opts: { stale?: boolean }
   }
 
   const lines: string[] = ['<skillsdb-rules>'];
-  lines.push('Rules from installed skills that apply to this task — follow them:');
+  lines.push(
+    opts.heading === 'plan'
+      ? 'Rules from installed skills that apply to the approved plan — follow them during implementation:'
+      : 'Rules from installed skills that apply to this task — follow them:',
+  );
   for (const [category, list] of byCategory) {
     lines.push(`[${category}]`);
     for (const rule of list) {

@@ -1,9 +1,13 @@
 /**
- * UserPromptSubmit hook entry — the product's hot path.
+ * Hook entry — the product's hot path. Handles two events:
+ *  - UserPromptSubmit: match the user's prompt, print the rules block (stdout
+ *    is injected as context).
+ *  - PostToolUse on ExitPlanMode: match the approved plan text (much richer
+ *    than a vague prompt), inject via hookSpecificOutput.additionalContext.
  *
- * Contract: NEVER block the user's prompt. On any error print nothing and
- * exit 0. Kept deliberately slim (better-sqlite3 + matcher only) so Node
- * cold-start stays low on every prompt.
+ * Contract: NEVER block the user. On any error print nothing and exit 0.
+ * Kept deliberately slim (better-sqlite3 + matcher only) so Node cold-start
+ * stays low on every prompt.
  */
 import fs from 'node:fs';
 import Database from 'better-sqlite3';
@@ -17,9 +21,10 @@ async function main(): Promise<void> {
   if (process.env.SKILLSDB_EXTRACTION === '1') return;
 
   const input = JSON.parse(await readStdin(2000));
-  const prompt: string = typeof input.prompt === 'string' ? input.prompt : '';
+  const isPlanApproval = input.hook_event_name === 'PostToolUse';
+  const text = isPlanApproval ? planText(input) : typeof input.prompt === 'string' ? input.prompt : '';
   const cwd: string = typeof input.cwd === 'string' ? input.cwd : process.cwd();
-  if (!prompt.trim()) return;
+  if (!text.trim()) return;
 
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) return;
@@ -29,7 +34,7 @@ async function main(): Promise<void> {
   const db = new Database(dbPath, { readonly: true, fileMustExist: true });
   try {
     const config = loadConfig(projectRoot);
-    const rules = matchRules(db, prompt.slice(0, 4000), {
+    const rules = matchRules(db, text.slice(0, 8000), {
       tokenBudget: config.tokenBudget,
       maxRules: config.maxRules,
     });
@@ -40,10 +45,45 @@ async function main(): Promise<void> {
     } catch {
       // staleness handling is best-effort
     }
-    const block = formatRulesBlock(rules, { stale });
-    if (block) process.stdout.write(block + '\n');
+    const block = formatRulesBlock(rules, { stale, heading: isPlanApproval ? 'plan' : 'prompt' });
+    if (!block) return;
+    if (isPlanApproval) {
+      process.stdout.write(
+        JSON.stringify({
+          hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: block },
+        }) + '\n',
+      );
+    } else {
+      process.stdout.write(block + '\n');
+    }
   } finally {
     db.close();
+  }
+}
+
+/**
+ * The approved plan text. Older Claude Code versions pass it as
+ * tool_input.plan; newer ones return it in the tool response — collect every
+ * string we can find (the matcher tokenizes lexically, so shape noise is
+ * harmless).
+ */
+function planText(input: Record<string, unknown>): string {
+  if (input.tool_name !== 'ExitPlanMode') return '';
+  const parts: string[] = [];
+  const toolInput = input.tool_input as Record<string, unknown> | undefined;
+  if (typeof toolInput?.plan === 'string') parts.push(toolInput.plan);
+  collectStrings(input.tool_response, parts, 0);
+  return parts.join('\n');
+}
+
+function collectStrings(value: unknown, out: string[], depth: number): void {
+  if (depth > 4 || out.join('').length > 16_000) return;
+  if (typeof value === 'string') {
+    if (value.length > 20) out.push(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) collectStrings(item, out, depth + 1);
+  } else if (value && typeof value === 'object') {
+    for (const item of Object.values(value)) collectStrings(item, out, depth + 1);
   }
 }
 

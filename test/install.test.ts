@@ -24,6 +24,26 @@ describe('installHook', () => {
     expect(hookInstalled(tmpDir)).toBe(true);
   });
 
+  it('registers a PostToolUse hook scoped to ExitPlanMode', () => {
+    installHook(tmpDir, CMD);
+    const settings = JSON.parse(fs.readFileSync(settingsPath(tmpDir), 'utf8'));
+    expect(settings.hooks.PostToolUse).toHaveLength(1);
+    expect(settings.hooks.PostToolUse[0].matcher).toBe('ExitPlanMode');
+    expect(settings.hooks.PostToolUse[0].hooks[0].command).toBe(CMD);
+  });
+
+  it('completes a partial install (only UserPromptSubmit present)', () => {
+    installHook(tmpDir, CMD);
+    const settings = JSON.parse(fs.readFileSync(settingsPath(tmpDir), 'utf8'));
+    delete settings.hooks.PostToolUse;
+    fs.writeFileSync(settingsPath(tmpDir), JSON.stringify(settings));
+    expect(hookInstalled(tmpDir)).toBe(false);
+    expect(installHook(tmpDir, CMD)).toBe('installed');
+    const fixed = JSON.parse(fs.readFileSync(settingsPath(tmpDir), 'utf8'));
+    expect(fixed.hooks.UserPromptSubmit).toHaveLength(1); // not duplicated
+    expect(fixed.hooks.PostToolUse).toHaveLength(1);
+  });
+
   it('preserves existing hooks and other settings', () => {
     fs.mkdirSync(path.join(tmpDir, '.claude'));
     fs.writeFileSync(
@@ -47,7 +67,7 @@ describe('installHook', () => {
     expect(settings.hooks.UserPromptSubmit).toHaveLength(1);
   });
 
-  it('removeHook removes only the skillsdb entry', () => {
+  it('removeHook removes only the skillsdb entries', () => {
     fs.mkdirSync(path.join(tmpDir, '.claude'));
     fs.writeFileSync(
       settingsPath(tmpDir),
@@ -60,5 +80,6 @@ describe('installHook', () => {
     const settings = JSON.parse(fs.readFileSync(settingsPath(tmpDir), 'utf8'));
     expect(settings.hooks.UserPromptSubmit).toHaveLength(1);
     expect(settings.hooks.UserPromptSubmit[0].hooks[0].command).toBe('npx ruflo hooks route');
+    expect(settings.hooks.PostToolUse).toHaveLength(0);
   });
 });
