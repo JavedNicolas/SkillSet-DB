@@ -2,6 +2,7 @@ import { openProjectDb } from '../db/database.js';
 import { loadConfig } from '../config.js';
 import { findProjectRoot, projectDbPath } from '../paths.js';
 import { makeLlmExtractor } from '../extract/claudeCli.js';
+import { makeLlmActivator } from '../detect/activation.js';
 import { watchSkills } from '../watch/watcher.js';
 
 export interface WatchOptions {
@@ -23,6 +24,7 @@ export async function watchCommand(cwd: string, options: WatchOptions): Promise<
   const close = watchSkills(db, projectRoot, {
     noLlm,
     llmExtract: llmExtract ?? undefined,
+    llmActivate: (noLlm ? null : makeLlmActivator(config)) ?? undefined,
     onProgress: (m) => console.log(m),
   });
 

@@ -7,6 +7,7 @@ import { projectDbDir, projectDbPath } from '../paths.js';
 import { hookCommand, installMcp } from '../install/mcp.js';
 import { installHook } from '../install/settings.js';
 import { makeLlmExtractor } from '../extract/claudeCli.js';
+import { makeLlmActivator } from '../detect/activation.js';
 import { loadConfig } from '../config.js';
 
 export interface InitOptions {
@@ -55,6 +56,7 @@ export async function initCommand(cwd: string, options: InitOptions): Promise<vo
     const summary = await runIndex(db, projectRoot, {
       noLlm,
       llmExtract: llmExtract ?? undefined,
+      llmActivate: (noLlm ? null : makeLlmActivator(config)) ?? undefined,
       onProgress: (m) => console.log(`  ${m}`),
     });
     console.log(

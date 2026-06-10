@@ -10,10 +10,14 @@ import {
 import { dedupeSkills, type DedupedSkill } from './scan/dedupe.js';
 import { scanSkills } from './scan/scanner.js';
 import { extractRules, type ExtractOptions } from './extract/extractor.js';
+import { applyActivation, type LlmActivator } from './detect/activation.js';
+import { loadConfig } from './config.js';
 
 export interface IndexOptions extends ExtractOptions {
   /** Re-extract everything even when content hashes are unchanged. */
   force?: boolean;
+  /** LLM relevance activator (stack-aware skill filtering). */
+  llmActivate?: LlmActivator;
   onProgress?: (message: string) => void;
 }
 
@@ -23,6 +27,8 @@ export interface IndexSummary {
   skipped: number;
   removed: string[];
   rules: number;
+  active: number;
+  inactive: number;
 }
 
 /**
@@ -61,8 +67,23 @@ export async function runIndex(db: Db, projectRoot: string, options: IndexOption
   });
   const removed = reconcile();
 
+  // stack-aware skill activation (needs final shadowing + deletions)
+  const activation = await applyActivation(db, projectRoot, loadConfig(projectRoot), {
+    noLlm: options.noLlm,
+    llmActivate: options.llmActivate,
+    onProgress: progress,
+  });
+
   const rules = (db.prepare('SELECT COUNT(*) AS n FROM rules').get() as { n: number }).n;
-  return { scanned: skills.length, extracted, skipped, removed, rules };
+  return {
+    scanned: skills.length,
+    extracted,
+    skipped,
+    removed,
+    rules,
+    active: activation.active,
+    inactive: activation.inactive,
+  };
 }
 
 /** A skill is fresh when its hash is unchanged and its extraction can't be upgraded. */
