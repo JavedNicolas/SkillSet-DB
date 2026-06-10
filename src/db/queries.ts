@@ -13,6 +13,39 @@ export interface SkillRow {
   shadowed_by: number | null;
   extraction_status: string;
   indexed_at: string | null;
+  active: number;
+  inactive_reason: string | null;
+}
+
+export interface StackFileSnapshot {
+  path: string;
+  present: boolean;
+  mtimeMs: number | null;
+  size: number | null;
+}
+
+export function getMeta(db: Db, key: string): string | undefined {
+  const row = db.prepare('SELECT value FROM meta WHERE key = ?').get(key) as { value: string } | undefined;
+  return row?.value;
+}
+
+export function setMeta(db: Db, key: string, value: string): void {
+  db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run(key, value);
+}
+
+export function setSkillActivation(db: Db, id: number, active: boolean, reason: string | null): void {
+  db.prepare('UPDATE skills SET active = ?, inactive_reason = ? WHERE id = ?').run(
+    active ? 1 : 0,
+    active ? null : reason,
+    id,
+  );
+}
+
+/** Replace the watched stack-manifest snapshot (absent candidates included). */
+export function replaceStackFiles(db: Db, snapshot: StackFileSnapshot[]): void {
+  db.prepare('DELETE FROM stack_files').run();
+  const insert = db.prepare('INSERT INTO stack_files (path, present, mtime_ms, size) VALUES (?, ?, ?, ?)');
+  for (const f of snapshot) insert.run(f.path, f.present ? 1 : 0, f.mtimeMs, f.size);
 }
 
 export function getSkillByPath(db: Db, path: string): SkillRow | undefined {
@@ -117,6 +150,7 @@ export interface StatusCounts {
   rules: number;
   categories: number;
   shadowed: number;
+  inactive: number;
 }
 
 export function statusCounts(db: Db): StatusCounts {
@@ -129,5 +163,14 @@ export function statusCounts(db: Db): StatusCounts {
     rules: (db.prepare('SELECT COUNT(*) AS n FROM rules').get() as { n: number }).n,
     categories: categoryCount(db),
     shadowed: (db.prepare('SELECT COUNT(*) AS n FROM skills WHERE shadowed_by IS NOT NULL').get() as { n: number }).n,
+    inactive: inactiveCount(db),
   };
+}
+
+function inactiveCount(db: Db): number {
+  try {
+    return (db.prepare('SELECT COUNT(*) AS n FROM skills WHERE active = 0').get() as { n: number }).n;
+  } catch {
+    return 0; // pre-v2 database opened readonly: no active column yet
+  }
 }
