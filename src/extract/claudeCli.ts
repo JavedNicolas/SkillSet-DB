@@ -88,6 +88,26 @@ async function callClaude(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<LlmExtraction | null> {
+  const json = await callClaudeJson(claudeBin, model, systemPrompt, userPrompt);
+  if (!json) return null;
+  try {
+    return LlmExtractionSchema.parse(JSON.parse(json));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Headless claude call returning the fence-stripped result string, with the
+ * recursion guards every SkillsDB subprocess needs (tmpdir cwd, hooks
+ * disabled, SKILLSDB_EXTRACTION env). Shared by extraction and activation.
+ */
+export async function callClaudeJson(
+  claudeBin: string,
+  model: string,
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<string | null> {
   const args = [
     '-p',
     userPrompt,
@@ -126,8 +146,7 @@ async function callClaude(
     const envelope = JSON.parse(stdout);
     const result: unknown = envelope?.result;
     if (typeof result !== 'string') return null;
-    const json = stripFences(result);
-    return LlmExtractionSchema.parse(JSON.parse(json));
+    return stripFences(result);
   } catch {
     return null;
   }
