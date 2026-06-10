@@ -11,6 +11,10 @@ export interface SkillsdbConfig {
   extractionModel: string;
   /** Disable LLM extraction entirely (heuristic only). */
   noLlm: boolean;
+  /** Hard overrides: always-active skill names (wins over disabledSkills). */
+  enabledSkills: string[];
+  /** Hard overrides: never-active skill names. */
+  disabledSkills: string[];
 }
 
 export const DEFAULT_CONFIG: SkillsdbConfig = {
@@ -18,6 +22,8 @@ export const DEFAULT_CONFIG: SkillsdbConfig = {
   maxRules: 15,
   extractionModel: 'claude-opus-4-8',
   noLlm: false,
+  enabledSkills: [],
+  disabledSkills: [],
 };
 
 export function configPath(projectRoot: string): string {
