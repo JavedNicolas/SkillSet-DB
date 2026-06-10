@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS skills (
@@ -69,6 +69,23 @@ CREATE TRIGGER IF NOT EXISTS rules_au AFTER UPDATE ON rules BEGIN
   INSERT INTO rules_fts(rowid, title, rule_text, triggers, category)
   VALUES (new.id, new.title, new.rule_text, new.triggers, new.category);
 END;
+`;
+
+export const MIGRATION_V2_SQL = `
+ALTER TABLE skills ADD COLUMN active INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE skills ADD COLUMN inactive_reason TEXT;
+
+CREATE TABLE IF NOT EXISTS meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS stack_files (
+  path TEXT PRIMARY KEY,
+  present INTEGER NOT NULL,
+  mtime_ms INTEGER,
+  size INTEGER
+);
 `;
 
 export const CACHE_SCHEMA_SQL = `

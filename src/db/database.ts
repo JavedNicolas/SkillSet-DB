@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Database from 'better-sqlite3';
-import { SCHEMA_SQL, SCHEMA_VERSION } from './schema.js';
+import { MIGRATION_V2_SQL, SCHEMA_SQL, SCHEMA_VERSION } from './schema.js';
 import { SEED_CATEGORIES } from '../extract/taxonomy.js';
 
 export type Db = Database.Database;
@@ -18,12 +18,33 @@ export function openProjectDb(dbPath: string, options?: { readonly?: boolean }):
   return db;
 }
 
+const MIGRATIONS: Record<number, (db: Db) => void> = {
+  1: (db) => {
+    db.exec(SCHEMA_SQL);
+    seedCategories(db);
+  },
+  2: (db) => {
+    db.exec(MIGRATION_V2_SQL);
+  },
+};
+
 function migrate(db: Db): void {
-  const current = db.pragma('user_version', { simple: true }) as number;
-  if (current >= SCHEMA_VERSION) return;
-  db.exec(SCHEMA_SQL);
-  seedCategories(db);
-  db.pragma(`user_version = ${SCHEMA_VERSION}`);
+  let version = db.pragma('user_version', { simple: true }) as number;
+  while (version < SCHEMA_VERSION) {
+    version++;
+    const step = MIGRATIONS[version];
+    if (!step) throw new Error(`No migration to schema version ${version}`);
+    db.transaction(() => {
+      step(db);
+      db.pragma(`user_version = ${version}`);
+    })();
+  }
+}
+
+/** Current schema version of an open DB — used to version-gate v2-only SQL
+ * on the readonly hook path, where migration cannot run. */
+export function schemaVersion(db: Db): number {
+  return db.pragma('user_version', { simple: true }) as number;
 }
 
 function seedCategories(db: Db): void {
