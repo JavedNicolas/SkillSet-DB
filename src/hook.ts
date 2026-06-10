@@ -1,5 +1,5 @@
 /**
- * Hook entry — the product's hot path. Handles three events:
+ * Hook entry — the product's hot path. Handles every SkillsDB hook event:
  *  - UserPromptSubmit: match the user's prompt, print the rules block (stdout
  *    is injected as context).
  *  - PostToolUse on ExitPlanMode: match the approved plan text (much richer
@@ -7,6 +7,12 @@
  *  - PostToolUse on TaskCreate/TodoWrite: match Claude's own task list — the
  *    moment it decides what to do after a vague prompt. Deduped per session
  *    so status updates never re-inject rules the model already saw.
+ *  - SessionStart: awareness block on startup/resume/clear; after compaction
+ *    (source=compact) re-state the session's already-injected rules, which
+ *    the compacted context may have dropped.
+ *  - SubagentStart: seed the subagent (blind to main-conversation context)
+ *    with the session's active rules.
+ *  - SessionEnd: drop the session's dedup record.
  *
  * Contract: NEVER block the user. On any error print nothing and exit 0.
  * Kept deliberately slim (better-sqlite3 + matcher only) so Node cold-start
@@ -15,68 +21,146 @@
 import fs from 'node:fs';
 import Database from 'better-sqlite3';
 import { loadConfig } from './config.js';
-import { matchRules } from './match/matcher.js';
-import { formatRulesBlock } from './match/format.js';
-import { loadInjected, recordInjected } from './match/session.js';
+import { matchRules, rulesByIds } from './match/matcher.js';
+import { formatRulesBlock, formatStatusBlock } from './match/format.js';
+import { clearSession, loadInjected, recordInjected } from './match/session.js';
 import { isIndexStale, triggerBackgroundSync } from './match/stale.js';
 import { findProjectRoot, projectDbPath } from './paths.js';
 
 type EventKind = 'prompt' | 'plan' | 'tasks';
 
+const SUBAGENT_MAX_RULES = 10;
+
 async function main(): Promise<void> {
   if (process.env.SKILLSDB_EXTRACTION === '1') return;
 
   const input = JSON.parse(await readStdin(2000));
-  const parsed = parseEvent(input);
-  if (!parsed) return;
-  const { kind, text } = parsed;
+  const event: unknown = input.hook_event_name;
   const cwd: string = typeof input.cwd === 'string' ? input.cwd : process.cwd();
   const sessionId: string = typeof input.session_id === 'string' ? input.session_id : 'default';
 
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) return;
+
+  if (event === 'SessionEnd') {
+    clearSession(projectRoot, sessionId);
+    return;
+  }
+
   const dbPath = projectDbPath(projectRoot);
   if (!fs.existsSync(dbPath)) return;
-
   const db = new Database(dbPath, { readonly: true, fileMustExist: true });
   try {
-    const config = loadConfig(projectRoot);
-    let rules = matchRules(db, text.slice(0, 8000), {
-      tokenBudget: config.tokenBudget,
-      maxRules: config.maxRules,
-    });
-
-    // plan/tasks fire mid-session: only inject rules not already seen.
-    // Prompt injections are never filtered (each user message stands alone)
-    // but are recorded so later task hooks don't repeat them.
-    if (kind !== 'prompt') {
-      const seen = loadInjected(projectRoot, sessionId);
-      rules = rules.filter((r) => !seen.has(r.id));
+    if (event === 'SessionStart') {
+      handleSessionStart(db, input, projectRoot, sessionId);
+      return;
     }
-    if (rules.length === 0) return;
-    recordInjected(projectRoot, sessionId, rules);
-
-    let stale = false;
-    try {
-      stale = isIndexStale(db);
-      if (stale) triggerBackgroundSync(projectRoot);
-    } catch {
-      // staleness handling is best-effort
+    if (event === 'SubagentStart') {
+      handleSubagentStart(db, projectRoot, sessionId);
+      return;
     }
-
-    const block = formatRulesBlock(rules, { stale, heading: kind });
-    if (kind === 'prompt') {
-      process.stdout.write(block + '\n');
-    } else {
-      process.stdout.write(
-        JSON.stringify({
-          hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: block },
-        }) + '\n',
-      );
-    }
+    handleTextMatch(db, input, projectRoot, sessionId);
   } finally {
     db.close();
   }
+}
+
+/** UserPromptSubmit + PostToolUse(plan/tasks): lexical match on event text. */
+function handleTextMatch(
+  db: Database.Database,
+  input: Record<string, unknown>,
+  projectRoot: string,
+  sessionId: string,
+): void {
+  const parsed = parseEvent(input);
+  if (!parsed) return;
+  const { kind, text } = parsed;
+
+  const config = loadConfig(projectRoot);
+  let rules = matchRules(db, text.slice(0, 8000), {
+    tokenBudget: config.tokenBudget,
+    maxRules: config.maxRules,
+  });
+
+  // plan/tasks fire mid-session: only inject rules not already seen.
+  // Prompt injections are never filtered (each user message stands alone)
+  // but are recorded so later task hooks don't repeat them.
+  if (kind !== 'prompt') {
+    const seen = loadInjected(projectRoot, sessionId);
+    rules = rules.filter((r) => !seen.has(r.id));
+  }
+  if (rules.length === 0) return;
+  recordInjected(projectRoot, sessionId, rules);
+
+  const block = formatRulesBlock(rules, { stale: staleProbe(db, projectRoot), heading: kind });
+  if (kind === 'prompt') {
+    process.stdout.write(block + '\n');
+  } else {
+    writeAdditionalContext('PostToolUse', block);
+  }
+}
+
+/**
+ * startup/resume: tiny awareness block. clear: same, after dropping the
+ * dedup record (the context was wiped). compact: re-state the session's
+ * already-injected rules — compaction may have summarized them away while
+ * the dedup record still marks them as seen.
+ */
+function handleSessionStart(
+  db: Database.Database,
+  input: Record<string, unknown>,
+  projectRoot: string,
+  sessionId: string,
+): void {
+  const source = typeof input.source === 'string' ? input.source : 'startup';
+  staleProbe(db, projectRoot); // refresh the index before the first prompt
+
+  if (source === 'compact') {
+    const seen = [...loadInjected(projectRoot, sessionId)];
+    const config = loadConfig(projectRoot);
+    const rules = rulesByIds(db, seen, config.maxRules);
+    if (rules.length === 0) return;
+    writeAdditionalContext('SessionStart', formatRulesBlock(rules, { heading: 'compact' }));
+    return;
+  }
+
+  if (source === 'clear') clearSession(projectRoot, sessionId);
+  const block = formatStatusBlock(statusForBlock(db));
+  if (block) writeAdditionalContext('SessionStart', block);
+}
+
+/** Subagents never see main-conversation injections — seed them with the
+ * session's active rules (P1 first). Silent before anything matched. */
+function handleSubagentStart(db: Database.Database, projectRoot: string, sessionId: string): void {
+  const seen = [...loadInjected(projectRoot, sessionId)];
+  const rules = rulesByIds(db, seen, SUBAGENT_MAX_RULES);
+  if (rules.length === 0) return;
+  writeAdditionalContext('SubagentStart', formatRulesBlock(rules, { heading: 'subagent' }));
+}
+
+function statusForBlock(db: Database.Database): { rules: number; categories: number; skills: number } {
+  const row = db
+    .prepare(
+      `SELECT COUNT(r.id) AS rules, COUNT(DISTINCT r.category) AS categories,
+              COUNT(DISTINCT r.skill_id) AS skills
+       FROM rules r JOIN skills s ON s.id = r.skill_id WHERE s.shadowed_by IS NULL`,
+    )
+    .get() as { rules: number; categories: number; skills: number };
+  return row;
+}
+
+function staleProbe(db: Database.Database, projectRoot: string): boolean {
+  try {
+    const stale = isIndexStale(db);
+    if (stale) triggerBackgroundSync(projectRoot);
+    return stale;
+  } catch {
+    return false; // staleness handling is best-effort
+  }
+}
+
+function writeAdditionalContext(hookEventName: string, additionalContext: string): void {
+  process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName, additionalContext } }) + '\n');
 }
 
 function parseEvent(input: Record<string, unknown>): { kind: EventKind; text: string } | null {

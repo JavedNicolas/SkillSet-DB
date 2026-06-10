@@ -18,10 +18,17 @@ export function settingsPath(projectRoot: string): string {
  *  - PostToolUse on ExitPlanMode: match the approved plan text
  *  - PostToolUse on TaskCreate/TodoWrite: match Claude's own task list, the
  *    decision moment after a vague prompt in non-plan mode
+ *  - SessionStart: awareness block; on source=compact, re-state rules the
+ *    compaction may have dropped
+ *  - SubagentStart: seed subagents with the session's active rules
+ *  - SessionEnd: drop the session's dedup record
  */
 const HOOK_EVENTS: { event: string; matcher?: string }[] = [
   { event: 'UserPromptSubmit' },
   { event: 'PostToolUse', matcher: 'ExitPlanMode|TaskCreate|TodoWrite' },
+  { event: 'SessionStart' },
+  { event: 'SubagentStart' },
+  { event: 'SessionEnd' },
 ];
 
 /**
