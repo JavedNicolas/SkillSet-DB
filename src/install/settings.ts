@@ -15,18 +15,20 @@ export function settingsPath(projectRoot: string): string {
 /**
  * Hook events SkillsDB registers:
  *  - UserPromptSubmit: match every user prompt
- *  - PostToolUse on ExitPlanMode: match the approved plan text, so plan-mode
- *    work scoped after a vague prompt still gets its rules injected
+ *  - PostToolUse on ExitPlanMode: match the approved plan text
+ *  - PostToolUse on TaskCreate/TodoWrite: match Claude's own task list, the
+ *    decision moment after a vague prompt in non-plan mode
  */
 const HOOK_EVENTS: { event: string; matcher?: string }[] = [
   { event: 'UserPromptSubmit' },
-  { event: 'PostToolUse', matcher: 'ExitPlanMode' },
+  { event: 'PostToolUse', matcher: 'ExitPlanMode|TaskCreate|TodoWrite' },
 ];
 
 /**
  * Merge the SkillsDB hooks into the project's .claude/settings.json.
  * Append-only and idempotent: existing hooks (e.g. ruflo's) are never
- * touched, and re-running init never duplicates.
+ * touched, and re-running init never duplicates. An existing skillsdb entry
+ * with an outdated matcher is upgraded in place.
  */
 export function installHook(projectRoot: string, hookCommand: string): 'installed' | 'already-installed' {
   const file = settingsPath(projectRoot);
@@ -35,17 +37,24 @@ export function installHook(projectRoot: string, hookCommand: string): 'installe
   if (typeof settings.hooks !== 'object' || settings.hooks === null) settings.hooks = {};
   const hooks = settings.hooks as Record<string, unknown>;
 
-  let added = false;
+  let changed = false;
   for (const { event, matcher } of HOOK_EVENTS) {
     if (!Array.isArray(hooks[event])) hooks[event] = [];
     const entries = hooks[event] as HookEntry[];
-    if (hasSkillsdbHook(entries)) continue;
+    const existing = entries.find(isSkillsdbEntry);
+    if (existing) {
+      if (matcher && existing.matcher !== matcher) {
+        existing.matcher = matcher;
+        changed = true;
+      }
+      continue;
+    }
     const entry: HookEntry = { hooks: [{ type: 'command', command: hookCommand, timeout: 5 }] };
     if (matcher) entry.matcher = matcher;
     entries.push(entry);
-    added = true;
+    changed = true;
   }
-  if (!added) return 'already-installed';
+  if (!changed) return 'already-installed';
   writeJson(file, settings);
   return 'installed';
 }

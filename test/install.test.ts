@@ -24,12 +24,23 @@ describe('installHook', () => {
     expect(hookInstalled(tmpDir)).toBe(true);
   });
 
-  it('registers a PostToolUse hook scoped to ExitPlanMode', () => {
+  it('registers a PostToolUse hook scoped to plan and task tools', () => {
     installHook(tmpDir, CMD);
     const settings = JSON.parse(fs.readFileSync(settingsPath(tmpDir), 'utf8'));
     expect(settings.hooks.PostToolUse).toHaveLength(1);
-    expect(settings.hooks.PostToolUse[0].matcher).toBe('ExitPlanMode');
+    expect(settings.hooks.PostToolUse[0].matcher).toBe('ExitPlanMode|TaskCreate|TodoWrite');
     expect(settings.hooks.PostToolUse[0].hooks[0].command).toBe(CMD);
+  });
+
+  it('upgrades an outdated matcher in place without duplicating', () => {
+    installHook(tmpDir, CMD);
+    const settings = JSON.parse(fs.readFileSync(settingsPath(tmpDir), 'utf8'));
+    settings.hooks.PostToolUse[0].matcher = 'ExitPlanMode'; // pre-task-hook install
+    fs.writeFileSync(settingsPath(tmpDir), JSON.stringify(settings));
+    expect(installHook(tmpDir, CMD)).toBe('installed');
+    const upgraded = JSON.parse(fs.readFileSync(settingsPath(tmpDir), 'utf8'));
+    expect(upgraded.hooks.PostToolUse).toHaveLength(1);
+    expect(upgraded.hooks.PostToolUse[0].matcher).toBe('ExitPlanMode|TaskCreate|TodoWrite');
   });
 
   it('completes a partial install (only UserPromptSubmit present)', () => {
