@@ -17,11 +17,29 @@ afterEach(() => {
 const CMD = '"/usr/bin/node" "/opt/skillsdb/dist/hook.js"';
 
 describe('installHook', () => {
-  it('creates settings.json when missing', () => {
+  it('creates settings.json when missing, registering all five events', () => {
     expect(installHook(tmpDir, CMD)).toBe('installed');
     const settings = JSON.parse(fs.readFileSync(settingsPath(tmpDir), 'utf8'));
-    expect(settings.hooks.UserPromptSubmit).toHaveLength(1);
+    for (const event of ['UserPromptSubmit', 'PostToolUse', 'SessionStart', 'SubagentStart', 'SessionEnd']) {
+      expect(settings.hooks[event], event).toHaveLength(1);
+    }
     expect(hookInstalled(tmpDir)).toBe(true);
+  });
+
+  it('upgrades an older install missing the session events', () => {
+    installHook(tmpDir, CMD);
+    const settings = JSON.parse(fs.readFileSync(settingsPath(tmpDir), 'utf8'));
+    delete settings.hooks.SessionStart;
+    delete settings.hooks.SubagentStart;
+    delete settings.hooks.SessionEnd;
+    fs.writeFileSync(settingsPath(tmpDir), JSON.stringify(settings));
+    expect(hookInstalled(tmpDir)).toBe(false);
+    expect(installHook(tmpDir, CMD)).toBe('installed');
+    const upgraded = JSON.parse(fs.readFileSync(settingsPath(tmpDir), 'utf8'));
+    expect(upgraded.hooks.UserPromptSubmit).toHaveLength(1); // not duplicated
+    expect(upgraded.hooks.SessionStart).toHaveLength(1);
+    expect(upgraded.hooks.SubagentStart).toHaveLength(1);
+    expect(upgraded.hooks.SessionEnd).toHaveLength(1);
   });
 
   it('registers a PostToolUse hook scoped to plan and task tools', () => {
