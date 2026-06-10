@@ -41,6 +41,15 @@ program
   });
 
 program
+  .command('serve')
+  .description('Start the SkillsDB MCP server')
+  .option('--mcp', 'stdio MCP mode (default)')
+  .action(async () => {
+    const { serveMcp } = await import('./mcp/server.js');
+    await serveMcp(process.cwd());
+  });
+
+program
   .command('sync')
   .description('Incrementally update the index for changed skill files')
   .option('--no-llm', 'Skip LLM extraction (heuristic only)')
