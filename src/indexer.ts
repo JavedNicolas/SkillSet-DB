@@ -1,3 +1,4 @@
+import pLimit from 'p-limit';
 import type { Db } from './db/database.js';
 import {
   deleteMissingSkills,
@@ -33,23 +34,26 @@ export async function runIndex(db: Db, projectRoot: string, options: IndexOption
   const skills = dedupeSkills(scanSkills(projectRoot));
   progress(`Scanned ${skills.length} skills`);
 
+  const stale = skills.filter((skill) => options.force || !isFresh(db, skill, options));
+  const skipped = skills.length - stale.length;
   let extracted = 0;
-  let skipped = 0;
 
-  for (const skill of skills) {
-    if (!options.force && isFresh(db, skill, options)) {
-      skipped++;
-      continue;
-    }
-    const result = await extractRules(skill, options);
-    const insert = db.transaction(() => {
-      const skillId = upsertSkill(db, skill, result.method);
-      replaceSkillData(db, skillId, skill, result.rules);
-    });
-    insert();
-    extracted++;
-    progress(`Indexed ${skill.name} (${skill.scope}): ${result.rules.length} rules [${result.method}]`);
-  }
+  // extraction (LLM calls) runs concurrently; SQLite writes stay serialized
+  const limit = pLimit(3);
+  await Promise.all(
+    stale.map((skill) =>
+      limit(async () => {
+        const result = await extractRules(skill, options);
+        const insert = db.transaction(() => {
+          const skillId = upsertSkill(db, skill, result.method);
+          replaceSkillData(db, skillId, skill, result.rules);
+        });
+        insert();
+        extracted++;
+        progress(`Indexed ${skill.name} (${skill.scope}): ${result.rules.length} rules [${result.method}]`);
+      }),
+    ),
+  );
 
   const reconcile = db.transaction(() => {
     updateShadowing(db, skills);

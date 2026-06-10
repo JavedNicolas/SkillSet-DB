@@ -41,6 +41,14 @@ program
   });
 
 program
+  .command('sync')
+  .description('Incrementally update the index for changed skill files')
+  .option('--no-llm', 'Skip LLM extraction (heuristic only)')
+  .action(async (opts) => {
+    await indexCommand(process.cwd(), opts);
+  });
+
+program
   .command('status')
   .description('Show index health and counts per scope')
   .action(() => {
