@@ -4,6 +4,7 @@ import { initCommand } from './commands/init.js';
 import { listCommand } from './commands/list.js';
 import { matchCommand } from './commands/match.js';
 import { statusCommand } from './commands/status.js';
+import { uninstallCommand } from './commands/uninstall.js';
 
 const program = new Command();
 
@@ -72,6 +73,23 @@ program
   .option('--category <slug>', 'List rules of one category')
   .action((opts) => {
     listCommand(process.cwd(), opts);
+  });
+
+program
+  .command('watch')
+  .description('Watch skill directories and sync the index on change')
+  .option('--no-llm', 'Skip LLM extraction (heuristic only)')
+  .action(async (opts) => {
+    const { watchCommand } = await import('./commands/watch.js');
+    await watchCommand(process.cwd(), opts);
+  });
+
+program
+  .command('uninstall')
+  .description('Remove the hook and MCP registration from this project')
+  .option('--purge', 'Also delete the .skillsdb/ index directory')
+  .action((opts) => {
+    uninstallCommand(process.cwd(), opts);
   });
 
 program.parseAsync(process.argv).catch((err) => {
