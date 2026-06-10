@@ -50,6 +50,25 @@ export function matchRules(db: Db, prompt: string, options: MatchOptions = {}): 
   return budgetFill(candidates, tokenBudget, maxRules);
 }
 
+/**
+ * Fetch specific rules by id (shadowed skills excluded), P1 first.
+ * Used to re-state already-injected rules after compaction and to seed
+ * subagent context with the session's active rules.
+ */
+export function rulesByIds(db: Db, ids: number[], limit: number): MatchedRule[] {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  return db
+    .prepare(
+      `SELECT r.id, r.category, r.priority, r.title, r.rule_text AS ruleText,
+              s.name AS skill, -1.0 AS score
+       FROM rules r JOIN skills s ON s.id = r.skill_id
+       WHERE r.id IN (${placeholders}) AND s.shadowed_by IS NULL
+       ORDER BY r.priority, r.id LIMIT ?`,
+    )
+    .all(...ids, limit) as MatchedRule[];
+}
+
 export function promptTokens(prompt: string): string[] {
   const words = prompt
     .toLowerCase()

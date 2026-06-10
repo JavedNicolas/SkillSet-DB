@@ -9,6 +9,8 @@ const HEADINGS = {
   prompt: 'Rules from installed skills that apply to this task — follow them:',
   plan: 'Rules from installed skills that apply to the approved plan — follow them during implementation:',
   tasks: 'Rules from installed skills that apply to your task list — follow them:',
+  compact: 'Context was compacted — re-stating the SkillsDB rules that apply to the current work:',
+  subagent: "Rules from this project's skills that apply to the session's current work — follow them:",
 } as const;
 
 export function formatRulesBlock(
@@ -38,6 +40,20 @@ export function formatRulesBlock(
   }
   lines.push('</skillsdb-rules>');
   return lines.join('\n');
+}
+
+/**
+ * Session-start awareness block: tells Claude the rules system exists before
+ * any prompt is matched. Counts only — no rule bodies, a few dozen tokens.
+ */
+export function formatStatusBlock(counts: { rules: number; categories: number; skills: number }): string {
+  if (counts.rules === 0) return '';
+  return [
+    '<skillsdb-status>',
+    `SkillsDB is active on this project: ${counts.rules} rules from ${counts.skills} skills across ${counts.categories} categories.`,
+    'Rules matching each task are injected automatically. For work not covered by injected rules, query mcp__skillsdb__skillsdb_match; full rule text via mcp__skillsdb__skillsdb_rule_detail.',
+    '</skillsdb-status>',
+  ].join('\n');
 }
 
 /** Human-readable output for `skillsdb match` on a terminal. */

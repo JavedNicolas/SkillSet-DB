@@ -32,6 +32,15 @@ export function recordInjected(projectRoot: string, sessionId: string, rules: Ma
   }
 }
 
+/** Drop a session's dedup record (SessionEnd, or /clear which wipes context). */
+export function clearSession(projectRoot: string, sessionId: string): void {
+  try {
+    fs.rmSync(sessionFile(projectRoot, sessionId), { force: true });
+  } catch {
+    // ignore
+  }
+}
+
 function sessionFile(projectRoot: string, sessionId: string): string {
   const safe = sessionId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64) || 'default';
   return path.join(projectDbDir(projectRoot), `session-${safe}.json`);
