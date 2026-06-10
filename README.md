@@ -1,59 +1,151 @@
 # SkillsDB
 
-**Never let Claude forget a rule again.**
+Rule injection for Claude Code. Every skill you install becomes a database of atomic rules; the rules that apply to the current task are injected into context automatically — at prompt time, plan approval, task creation, subagent spawn, and after compaction.
 
-When a project accumulates many Claude Code skills (global, project, plugins), the rules buried inside them stop being applied reliably — there are simply too many to keep in mind. SkillsDB makes rule-checking automatic instead of memory-dependent:
+**~50 ms per injection · 0 API calls in the hot path · extraction cached per content hash**
 
-1. **Indexes every skill** available to your project (project `.claude/skills/`, user `~/.claude/skills/`, agent `~/.agents/skills/`, enabled plugins) into a local SQLite database of **atomic rules** with category, priority and trigger keywords.
-2. **Injects the matching rules into every prompt** via a `UserPromptSubmit` hook: your request is categorized in ~50 ms (offline, FTS5/BM25 — no API call) and a compact checklist of the applicable rules is added to Claude's context. Guaranteed — Claude can't forget to check.
-   Vague prompts are covered too: a second hook (`PostToolUse` on `ExitPlanMode|TaskCreate|TodoWrite`) fires when you approve a **plan** or when Claude writes its own **task list** — the moments the real work gets scoped — and matches against that text instead. Injections are deduped per session, so todo status updates never repeat rules Claude has already seen.
-   The session lifecycle is covered end to end: `SessionStart` announces the rules system at startup and **re-states the active rules after context compaction** (which would otherwise silently drop them), `SubagentStart` seeds subagents (blind to main-conversation context) with the session's active rules, and `SessionEnd` cleans up the dedup record. Initialized with an older version? Re-run `skillsdb init` to upgrade the hooks.
-3. **Exposes MCP tools** (`skillsdb_match`, `skillsdb_rule_detail`, …) so Claude can query the rules database mid-task.
-4. **Stays current**: content-hash sync re-extracts only changed skills; the hook detects stale files and refreshes in the background.
+## Why SkillsDB
 
-## Install
+Claude Code skills are loaded selectively: a skill's instructions only enter context when the model decides to invoke it. As projects accumulate skills (user-level, project-level, plugins), two failure modes appear:
 
-```bash
-npm install -g skillsdb     # or npm link from a clone
+- Rules buried in a skill the model did not invoke are never seen, so they are never applied.
+- Rules seen early in a session are forgotten after the context grows or gets compacted.
+
+Both failures are silent: the code works, but violates conventions you wrote down — wrong state-management pattern, missing RLS policy, hardcoded route strings. You catch it in review, then spend a correction round-trip.
+
+SkillsDB removes the "model decides to look" step. It parses every skill available to a project into individual rules with categories, priorities, and trigger keywords, stores them in a local SQLite database, and matches the user's request against them on every prompt with FTS5/BM25 — lexical, offline, no model call. The matching rules are injected as a compact checklist the model cannot skip.
+
+## Get Started
+
+```
+# 1. Install
+npm install -g skillsdb
+
+# 2. Initialize in your project
 cd your-project
 skillsdb init
 ```
 
-`init` creates `.skillsdb/` (self-gitignored), registers the hook in `.claude/settings.json` (append-only — existing hooks are never touched), registers the MCP server in `.mcp.json`, and runs the first index.
+`init` does four things:
 
-## Rule extraction
+1. Creates `.skillsdb/` (self-gitignored) with the SQLite rules database.
+2. Indexes every skill visible to the project and extracts rules (see Extraction below).
+3. Registers the hooks in `.claude/settings.json`. The merge is append-only: existing hooks from other tools are never modified, and re-running `init` never duplicates entries.
+4. Registers the MCP server in `.mcp.json`.
 
-By default rules are extracted with the **headless claude CLI** (`claude -p`): each skill becomes 5–25 atomic imperative rules with categories, priorities (P1 critical → P4 info) and rich trigger keywords. Results are cached globally in `~/.skillsdb/` by content hash, so a skill is extracted **once ever**, across all your projects.
+Restart Claude Code in the project. Verify with:
 
-No claude CLI, or want zero token cost? `skillsdb init --no-llm` uses a deterministic heuristic extractor (headings, bullets, MUST/NEVER sentences). Re-running `skillsdb index` later upgrades heuristic skills to LLM quality.
+```
+skillsdb status
+skillsdb match "write a supabase migration with RLS"
+```
 
-Reference files with their own frontmatter (`title`, `impact`, `tags` — e.g. supabase-postgres-best-practices) are converted deterministically, with zero LLM calls.
+## What Gets Indexed
 
-## Commands
+All skill scopes are merged, in precedence order:
 
-| Command | What it does |
+| Scope | Location |
 |---|---|
-| `skillsdb init` | Set up everything for the current project (`--no-hook`, `--no-mcp`, `--no-llm`) |
-| `skillsdb match "<task>"` | Preview which rules a task description triggers |
-| `skillsdb index` | Full rescan (`--force` ignores the cache) |
-| `skillsdb sync` | Incremental update for changed skill files |
-| `skillsdb watch` | Watch skill directories and sync on change |
-| `skillsdb status` | Index health, counts per scope, staleness |
-| `skillsdb list` | Skills, `--rules`, `--categories`, `--category <slug>` |
-| `skillsdb uninstall` | Remove hook + MCP entries (`--purge` deletes the index) |
+| project | `<project>/.claude/skills/` |
+| user | `~/.claude/skills/` |
+| agents | `~/.agents/skills/` (including `references/*.md`) |
+| plugin | `~/.claude/plugins/cache/` (enabled plugins only) |
 
-## How matching works
+When the same skill name exists at several scopes, the higher scope wins; shadowed copies stay indexed but are excluded from matching.
 
-- Rules live in SQLite with an FTS5 index over title/text/triggers/category (porter stemming).
-- Your prompt is tokenized and matched with BM25; trigger keywords get the highest column weight; rule priority amplifies ranking (P1 ×1.6 … P4 ×0.7).
-- The top rules are packed into a ~800-token, max-15-rule checklist grouped by category. P1 rules are reserved first.
-- Same skill at multiple scopes? Project wins over user, user over agents, agents over plugins; shadowed copies are indexed but never injected.
+## Extraction
 
-## Fail-open guarantee
+Skill bodies are freeform markdown, so turning them into atomic rules is the hard part. SkillsDB uses three extractors, in order of preference:
 
-The hook can never block your prompt: any error (missing DB, corrupt DB, malformed input, oversized prompt) exits silently with code 0. Extraction subprocesses run with hooks disabled and a recursion-guard env (`SKILLSDB_EXTRACTION=1`).
+1. **Deterministic** — reference files that carry their own frontmatter (`title`, `impact`, `tags`) map directly to one rule each. Zero model calls.
+2. **LLM** — the headless claude CLI (`claude -p`) reads each remaining skill and returns 5–25 atomic rules as validated JSON: one imperative sentence each, a category from the taxonomy, a priority (P1 critical to P4 informational), and 5–15 trigger keywords including synonyms, framework names, and file-extension hints. Results are cached in `~/.skillsdb/` keyed by content hash: a given skill version is extracted once, ever, across all projects on the machine.
+3. **Heuristic** — when the claude CLI is absent or `--no-llm` is passed: headings, bullets, and MUST/NEVER/ALWAYS sentences, categorized by keyword overlap. Free and instant, lower fidelity. Heuristic skills are upgraded to LLM extraction automatically on the next `skillsdb index`.
 
-## Config
+Extraction subprocesses run with hooks disabled, an empty MCP config, and a guard environment variable, so indexing can never recursively trigger SkillsDB's own hooks.
+
+## How Injection Works
+
+```
+user prompt ──► UserPromptSubmit hook ─┐
+plan approved ─► PostToolUse hook ─────┤        ┌──────────────┐
+task list ─────► PostToolUse hook ─────┼─ match │  skillsdb.db │ ─► rules block
+subagent ──────► SubagentStart hook ───┤ (FTS5) │   (SQLite)   │    into context
+compaction ────► SessionStart hook ────┘        └──────────────┘
+```
+
+Each hook fire is an isolated process: read the event JSON from stdin, open the database read-only, run one FTS query, print, exit. Measured at ~50 ms wall time on a 174-rule index.
+
+Coverage by moment:
+
+| Moment | Event | What is matched |
+|---|---|---|
+| Every user message | `UserPromptSubmit` | The prompt text |
+| Plan approved (plan mode) | `PostToolUse: ExitPlanMode` | The full plan text |
+| Claude writes its task list | `PostToolUse: TaskCreate\|TodoWrite` | Task subjects and todo contents |
+| Subagent spawns | `SubagentStart` | The session's already-active rules (subagents do not see main-conversation context) |
+| Session starts | `SessionStart` | None — injects a counts-only awareness block |
+| Context compacted | `SessionStart (source: compact)` | Re-states the session's active rules, which compaction may have dropped |
+| Session ends | `SessionEnd` | None — deletes the session's dedup record |
+
+Plan, task, and subagent injections are deduplicated per session: a rule the model has already seen is not injected again. The dedup record lives in `.skillsdb/session-<id>.json` and is reset on `/clear` and removed at session end.
+
+The injected block is compact by design — default budget 800 tokens, 15 rules, grouped by category, critical rules reserved first:
+
+```
+<skillsdb-rules>
+Rules from installed skills that apply to this task — follow them:
+[database]
+- R23 P1 When you need a new migration SQL file, always create it with supabase migration new. (supabase)
+- R11 P1 Enable RLS on every table in any exposed schema. (supabase)
+[architecture]
+- R4 P1 Features never import each other. Cross-feature data flows through core or DI only. (flutter-architecture)
+Full text: mcp__skillsdb__skillsdb_rule_detail with the R-number.
+</skillsdb-rules>
+```
+
+## Matching
+
+- One FTS5 virtual table over rule title, text, triggers, and category, with porter stemming.
+- The request is tokenized (stopwords removed, capped at 24 terms) and ranked with BM25; the triggers column carries the highest weight.
+- Priority scales the ranking: P1 ×1.6, P2 ×1.2, P3 ×1.0, P4 ×0.7.
+- When FTS returns fewer than 3 hits (vague request), a fallback channel injects the high-priority rules of categories whose keyword maps overlap the request.
+- Budget fill is greedy: P1 rules of matched categories first, then best-ranked until the token or count cap.
+
+## Staying Current
+
+Indexes go stale when skill files change. Three mechanisms reconcile, cheapest first:
+
+1. **Per-fire staleness probe** — every hook fire stats the indexed files (sub-millisecond); on mismatch it appends a stale note and spawns a detached `skillsdb sync` behind a lockfile, so the next prompt sees fresh rules. This works with no daemon running.
+2. **`skillsdb sync`** — manual incremental update; only skills whose content hash changed are re-extracted.
+3. **`skillsdb watch`** — chokidar watcher over all skill roots with a 2 s debounce, for active skill-authoring sessions.
+
+## CLI Reference
+
+```
+skillsdb init                 # set up everything for the current project
+                              #   --no-hook  --no-mcp  --no-llm
+skillsdb match "<task>"       # preview the rules a task description triggers
+                              #   --category <slug>  --limit <n>
+skillsdb index                # full rescan (--force ignores the extraction cache)
+skillsdb sync                 # incremental update for changed skill files
+skillsdb watch                # watch skill directories, sync on change
+skillsdb status               # index health, counts per scope, staleness
+skillsdb list                 # skills; --rules, --categories, --category <slug>
+skillsdb serve --mcp          # start the MCP server (stdio)
+skillsdb uninstall            # remove hook + MCP entries (--purge deletes .skillsdb/)
+```
+
+## MCP Tools
+
+| Tool | Purpose |
+|---|---|
+| `skillsdb_match` | Match a task description against the rules database. For work in an area the injected rules do not cover. |
+| `skillsdb_rule_detail` | Full text of one rule by its R-number, with the source file path so the original skill can be read. |
+| `skillsdb_rules_by_category` | All rules of one category, ordered by priority. |
+| `skillsdb_categories` | The category taxonomy with rule counts. |
+| `skillsdb_status` | Index health and counts. |
+
+## Configuration
 
 `.skillsdb/config.json`:
 
@@ -65,3 +157,29 @@ The hook can never block your prompt: any error (missing DB, corrupt DB, malform
   "noLlm": false
 }
 ```
+
+- `tokenBudget` / `maxRules` — caps for each injected block.
+- `extractionModel` — model used by the headless extraction calls. Switch to a smaller model to cut extraction cost; quality of trigger keywords drives matching quality, so prefer a capable model for skills you rely on.
+- `noLlm` — permanent heuristic mode for this project.
+
+There is no other configuration. The taxonomy ships with 16 seed categories (architecture, coding-style, ui-design, state-management, database, api-integration, auth-security, testing, performance, error-handling, git-workflow, devops-ci, docs, dependencies, tooling, general); the extractor may add project-specific ones, capped at 24 total.
+
+## Failure Behavior
+
+The hook fails open, always. Missing database, corrupt database, malformed event JSON, oversized prompt — every path exits 0 with no output, and your prompt goes through untouched. The hook entry also carries a 5 s timeout as a final backstop. Background syncs are lockfile-guarded and best-effort. The extraction cache and session records are optimizations; losing them costs a re-extraction or a duplicate injection, never an error.
+
+## Troubleshooting
+
+**No rules injected.** Run `skillsdb status` — if it reports no index, run `skillsdb init`. Check that `.claude/settings.json` contains the skillsdb hook entries (re-run `init` to repair; it is idempotent). Then test the matcher directly: `skillsdb match "your task"`.
+
+**Rules look low-quality (fragments, table rows).** The skill was extracted heuristically. Confirm with `skillsdb list` (look for `[heuristic]`), then run `skillsdb index` with the claude CLI available to upgrade.
+
+**Extraction is slow or expensive.** First index with `--no-llm`, upgrade later; or set a smaller `extractionModel`. Re-indexing is free for unchanged skills regardless — extraction is cached by content hash in `~/.skillsdb/`.
+
+**A skill changed but old rules are injected.** The staleness probe triggers a background sync on the next hook fire; run `skillsdb sync` to force it immediately.
+
+**Same skill at two scopes.** Intended: project > user > agents > plugin. `skillsdb list` marks the losers `(shadowed)`.
+
+## License
+
+MIT
