@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.skillsdb/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.tgz
+.DS_Store
