@@ -3,6 +3,7 @@ import { runIndex } from '../indexer.js';
 import { findProjectRoot, projectDbPath } from '../paths.js';
 import { loadConfig } from '../config.js';
 import { makeLlmExtractor } from '../extract/claudeCli.js';
+import { releaseSyncLock } from '../match/stale.js';
 
 export interface IndexCmdOptions {
   force?: boolean;
@@ -33,5 +34,6 @@ export async function indexCommand(cwd: string, options: IndexCmdOptions): Promi
     );
   } finally {
     db.close();
+    releaseSyncLock(projectRoot);
   }
 }

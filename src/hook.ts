@@ -10,6 +10,7 @@ import Database from 'better-sqlite3';
 import { loadConfig } from './config.js';
 import { matchRules } from './match/matcher.js';
 import { formatRulesBlock } from './match/format.js';
+import { isIndexStale, triggerBackgroundSync } from './match/stale.js';
 import { findProjectRoot, projectDbPath } from './paths.js';
 
 async function main(): Promise<void> {
@@ -32,7 +33,14 @@ async function main(): Promise<void> {
       tokenBudget: config.tokenBudget,
       maxRules: config.maxRules,
     });
-    const block = formatRulesBlock(rules);
+    let stale = false;
+    try {
+      stale = isIndexStale(db);
+      if (stale) triggerBackgroundSync(projectRoot);
+    } catch {
+      // staleness handling is best-effort
+    }
+    const block = formatRulesBlock(rules, { stale });
     if (block) process.stdout.write(block + '\n');
   } finally {
     db.close();
