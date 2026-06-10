@@ -1,6 +1,8 @@
 import { Command } from 'commander';
 import { indexCommand } from './commands/index-cmd.js';
+import { initCommand } from './commands/init.js';
 import { listCommand } from './commands/list.js';
+import { matchCommand } from './commands/match.js';
 import { statusCommand } from './commands/status.js';
 
 const program = new Command();
@@ -9,6 +11,25 @@ program
   .name('skillsdb')
   .description('Skill-rules database for Claude Code — never forget a rule again')
   .version('0.1.0');
+
+program
+  .command('init')
+  .description('Set up SkillsDB for this project: index, hook, MCP server')
+  .option('--no-hook', 'Do not register the UserPromptSubmit hook')
+  .option('--no-mcp', 'Do not register the MCP server')
+  .option('--no-llm', 'Skip LLM extraction (heuristic only)')
+  .action(async (opts) => {
+    await initCommand(process.cwd(), opts);
+  });
+
+program
+  .command('match <text>')
+  .description('Show the rules SkillsDB would inject for a task description')
+  .option('--category <slug>', 'Restrict matching to one category')
+  .option('--limit <n>', 'Max rules to return')
+  .action((text, opts) => {
+    matchCommand(process.cwd(), text, opts);
+  });
 
 program
   .command('index')
