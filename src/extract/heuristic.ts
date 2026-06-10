@@ -88,6 +88,8 @@ export function heuristicExtract(skill: ScannedSkill): ExtractedRule[] {
 
 /** A line qualifies as a rule if it's a bullet or sentence with imperative force. */
 function ruleCandidate(line: string): string | null {
+  // markdown table rows and blockquotes produce garbled fragments — skip them
+  if (line.startsWith('|') || line.startsWith('>')) return null;
   const bullet = line.match(/^[-*]\s+(.*)$/);
   const bold = line.match(/^\*\*(?:key rule|rule|important|note)[:\s]*\*\*[:\s]*(.*)$/i);
   let text = bold?.[1] ?? bullet?.[1] ?? null;
