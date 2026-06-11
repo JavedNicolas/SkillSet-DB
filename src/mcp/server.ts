@@ -12,7 +12,12 @@ import { formatRulesHuman } from '../match/format.js';
 
 const INSTRUCTIONS = `SkillsDB indexes every rule from the skills installed for this project.
 A compact rule checklist is auto-injected on each user prompt; use these tools when you start
-work in an area the injected rules don't cover, or to read a rule's full text via its R-number.`;
+work in an area the injected rules don't cover, or to read a rule's full text via its R-number.
+
+IMPORTANT: when the user states a lasting rule, preference, or correction that should persist
+beyond this conversation ("always X", "never Y", "from now on...") and it is not already covered
+by an existing rule, save it with skillsdb_remember. Provide precise trigger keywords (synonyms,
+framework names, file extensions) — they drive when the rule resurfaces.`;
 
 export async function serveMcp(cwd: string): Promise<void> {
   let db: Db | null = null;
@@ -98,6 +103,70 @@ export async function serveMcp(cwd: string): Promise<void> {
         `Triggers: ${row.triggers}`,
       ].filter(Boolean);
       return text(lines.join('\n'));
+    },
+  );
+
+  server.registerTool(
+    'skillsdb_remember',
+    {
+      description:
+        'Persist a rule the user stated in conversation so it is injected in future sessions. Stored globally as a generated skill (skillsdb-memory-<tech>) usable even without SkillsDB. Use when the user expresses a lasting rule/preference/correction not covered by existing rules.',
+      inputSchema: {
+        rule: z.string().min(5).max(300).describe('ONE imperative sentence, self-contained'),
+        tech: z
+          .string()
+          .optional()
+          .describe('Framework/language bucket: flutter, react, typescript, supabase... Omit for the detected stack; "general" for stack-agnostic rules'),
+        category: z.string().optional().describe('Category slug (see skillsdb_categories)'),
+        priority: z.number().int().min(1).max(4).optional().describe('1 critical .. 4 info (default 2)'),
+        triggers: z
+          .array(z.string())
+          .min(3)
+          .max(15)
+          .describe('Lowercase keywords a task description would contain when this rule applies: synonyms, verbs, framework names, file-extension hints'),
+        detail: z.string().max(2000).optional().describe('Optional longer explanation or example'),
+      },
+    },
+    async ({ rule, tech, category, priority, triggers, detail }) => {
+      if (!projectRoot) throw new Error('No SkillsDB index found — run `skillsdb init` in the project.');
+      const { rememberRule } = await import('../memory/remember.js');
+      const { openProjectDb } = await import('../db/database.js');
+      const writeDb = openProjectDb(projectDbPath(projectRoot));
+      try {
+        const result = await rememberRule(writeDb, projectRoot, 'global', {
+          ruleText: rule,
+          tech,
+          category,
+          priority,
+          triggers,
+          detail,
+        });
+        return text(
+          `Remembered globally in ${result.skillName}: "${rule}". It is indexed and will be injected when relevant in every project using ${result.tech}.`,
+        );
+      } finally {
+        writeDb.close();
+      }
+    },
+  );
+
+  server.registerTool(
+    'skillsdb_forget',
+    {
+      description: 'Remove a previously remembered rule by its R-number (only skillsdb-memory rules).',
+      inputSchema: { id: z.number().int().describe('Rule id (the N in "RN")') },
+    },
+    async ({ id }) => {
+      if (!projectRoot) throw new Error('No SkillsDB index found.');
+      const { forgetRule } = await import('../memory/remember.js');
+      const { openProjectDb } = await import('../db/database.js');
+      const writeDb = openProjectDb(projectDbPath(projectRoot));
+      try {
+        const removed = await forgetRule(writeDb, id);
+        return text(removed ? `Forgot rule R${id}.` : `R${id} is not a remembered rule — cannot forget it.`);
+      } finally {
+        writeDb.close();
+      }
     },
   );
 
