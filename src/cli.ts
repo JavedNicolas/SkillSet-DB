@@ -86,6 +86,22 @@ program
   });
 
 program
+  .command('add')
+  .description('Interactively activate skills that are currently inactive for this project')
+  .action(async () => {
+    const { addCommand } = await import('./commands/activate.js');
+    await addCommand(process.cwd());
+  });
+
+program
+  .command('edit')
+  .description('Interactively toggle which skills are active for this project')
+  .action(async () => {
+    const { editCommand } = await import('./commands/activate.js');
+    await editCommand(process.cwd());
+  });
+
+program
   .command('enable <skill>')
   .description('Force a skill active for this project (hard override)')
   .action(async (skill) => {

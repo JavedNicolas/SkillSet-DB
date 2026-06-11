@@ -66,11 +66,15 @@ On an **empty project** (no manifests, no source files), `skillsdb init` shows a
 Manual control always wins:
 
 ```
+skillsdb add                         # interactive picker: activate inactive skills
+skillsdb edit                        # interactive toggle list of all skills
 skillsdb disable flutter-riverpod    # hard override, survives re-detection
 skillsdb enable flutter-riverpod
 skillsdb list                        # shows (inactive: <reason>) per skill
 skillsdb status                      # shows the detected stack
 ```
+
+`add` and `edit` write the same hard overrides as `enable`/`disable`. In `edit`, skills left in their current state stay governed by automatic detection — only toggles become overrides.
 
 ## Extraction
 
@@ -150,6 +154,8 @@ skillsdb sync                 # incremental update for changed skill files
 skillsdb watch                # watch skill directories, sync on change
 skillsdb status               # index health, detected stack, counts, staleness
 skillsdb list                 # skills with activation state; --rules, --categories
+skillsdb add                  # interactive picker over inactive skills
+skillsdb edit                 # interactive toggle list of all skills
 skillsdb enable <skill>       # force a skill active for this project
 skillsdb disable <skill>      # force a skill inactive for this project
 skillsdb serve --mcp          # start the MCP server (stdio)
