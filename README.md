@@ -17,6 +17,10 @@ SkillsDB removes the "model decides to look" step. It parses every skill availab
 
 ## Get Started
 
+**Requirements:** Node.js ≥ 20. The `claude` CLI is optional — it enables LLM rule
+extraction and stack-relevance decisions; without it, SkillsDB falls back to heuristic
+extraction and a deterministic activation rule (everything still works, lower fidelity).
+
 ```
 # 1. Install (package name skills-db, command skillsdb)
 npm install -g skills-db
@@ -168,27 +172,54 @@ Indexes go stale when skill files change. Three mechanisms reconcile, cheapest f
 
 ## CLI Reference
 
-```
-skillsdb init                 # set up everything for the current project
-                              #   --no-hook  --no-mcp  --no-llm
-skillsdb match "<task>"       # preview the rules a task description triggers
-                              #   --category <slug>  --limit <n>
-skillsdb index                # full rescan (--force ignores the extraction cache)
-skillsdb sync                 # incremental update for changed skill files
-skillsdb watch                # watch skill directories, sync on change
-skillsdb status               # index health, detected stack, counts, staleness
-skillsdb list                 # skills with activation state; --rules, --categories
-skillsdb remember "<rule>"    # save a conversation rule (--project for project scope)
-skillsdb forget <R-number>    # remove a remembered rule
-skillsdb import-memory        # convert rules from Claude's project memory
-skillsdb add                  # interactive picker over inactive skills
-skillsdb edit                 # interactive toggle list of all skills
-skillsdb enable <skill>       # force a skill active for this project
-skillsdb disable <skill>      # force a skill inactive for this project
-skillsdb serve --mcp          # start the MCP server (stdio)
-skillsdb clear                # drop the rules database (--cache also wipes ~/.skillsdb)
-skillsdb uninstall            # remove hook + MCP entries (--purge deletes .skillsdb/)
-```
+All commands operate on the current working directory's project.
+
+### Setup
+
+| Command | Description |
+|---|---|
+| `skillsdb init` | Set up everything for the project: index, hook, MCP server. Flags: `--no-hook`, `--no-mcp`, `--no-llm`, `--no-interactive`. |
+| `skillsdb uninstall` | Remove the hook and MCP registration. `--purge` also deletes the `.skillsdb/` index directory. |
+
+### Inspect
+
+| Command | Description |
+|---|---|
+| `skillsdb match "<task>"` | Preview the rules a task description triggers. Flags: `--category <slug>`, `--limit <n>`. |
+| `skillsdb status` | Index health, detected stack, counts per scope, and staleness. |
+| `skillsdb list` | Skills with activation state. Flags: `--rules` (all rules grouped by category), `--categories` (taxonomy with counts), `--category <slug>`. |
+
+### Index
+
+| Command | Description |
+|---|---|
+| `skillsdb index` | Full rescan and (re)build of the rules database. `--force` ignores the content-hash cache; `--no-llm` skips LLM extraction. |
+| `skillsdb sync` | Incremental update for changed skill files only. `--no-llm` skips LLM extraction. |
+| `skillsdb watch` | Watch skill directories and sync on change. `--no-llm` skips LLM extraction. |
+| `skillsdb clear` | Drop the project rules database (config and hooks kept); rebuild with `skillsdb index`. `--cache` also wipes the global cache in `~/.skillsdb`. |
+
+### Activation
+
+| Command | Description |
+|---|---|
+| `skillsdb add` | Interactive picker to activate skills currently inactive for this project. |
+| `skillsdb edit` | Interactive toggle list of all skills. |
+| `skillsdb enable <skill>` | Force a skill active for this project (hard override). |
+| `skillsdb disable <skill>` | Force a skill inactive for this project (hard override). |
+
+### Memory
+
+| Command | Description |
+|---|---|
+| `skillsdb remember "<rule>"` | Save a conversation rule as a generated memory skill (global by default). Flags: `--project`, `--tech <tech>`, `--category <slug>`, `--priority <1-4>`, `--triggers <words>`, `--detail <text>`. |
+| `skillsdb forget [R-number]` | Remove a remembered rule by its R-number. With no argument, lists every remembered rule. |
+| `skillsdb import-memory` | Convert durable rules from Claude's project memory into remembered rules. `--no-llm` for deterministic conversion (one rule per note). |
+
+### Server
+
+| Command | Description |
+|---|---|
+| `skillsdb serve` | Start the MCP server (stdio). `--mcp` selects stdio mode explicitly and is the default. |
 
 ## MCP Tools
 
