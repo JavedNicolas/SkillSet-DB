@@ -13,8 +13,8 @@ let db: Db;
 const config = { ...DEFAULT_CONFIG, noLlm: true };
 
 beforeEach(async () => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-stale-'));
-  db = openProjectDb(path.join(tmpDir, '.skillsdb', 'skillsdb.db'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-stale-'));
+  db = openProjectDb(path.join(tmpDir, '.skillset-db', 'skillset-db.db'));
   fs.writeFileSync(path.join(tmpDir, 'package.json'), JSON.stringify({ dependencies: { react: '18' } }));
   await applyActivation(db, tmpDir, config, {}); // writes the stack_files snapshot
 });

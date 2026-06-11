@@ -7,14 +7,14 @@ import { hookInstalled, installHook, removeHook, settingsPath } from '../src/ins
 let tmpDir: string;
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-install-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-install-'));
 });
 
 afterEach(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
 });
 
-const CMD = '"/usr/bin/node" "/opt/skillsdb/dist/hook.js"';
+const CMD = '"/usr/bin/node" "/opt/skillset-db/dist/hook.js"';
 
 describe('installHook', () => {
   it('creates settings.json when missing, registering all five events', () => {
@@ -96,7 +96,7 @@ describe('installHook', () => {
     expect(settings.hooks.UserPromptSubmit).toHaveLength(1);
   });
 
-  it('removeHook removes only the skillsdb entries', () => {
+  it('removeHook removes only the skillset-db entries', () => {
     fs.mkdirSync(path.join(tmpDir, '.claude'));
     fs.writeFileSync(
       settingsPath(tmpDir),

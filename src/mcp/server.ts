@@ -10,13 +10,13 @@ import { findProjectRoot, projectDbPath } from '../paths.js';
 import { matchRules } from '../match/matcher.js';
 import { formatRulesHuman } from '../match/format.js';
 
-const INSTRUCTIONS = `SkillsDB indexes every rule from the skills installed for this project.
+const INSTRUCTIONS = `Skillset DB indexes every rule from the skills installed for this project.
 A compact rule checklist is auto-injected on each user prompt; use these tools when you start
 work in an area the injected rules don't cover, or to read a rule's full text via its R-number.
 
 IMPORTANT: when the user states a lasting rule, preference, or correction that should persist
 beyond this conversation ("always X", "never Y", "from now on...") and it is not already covered
-by an existing rule, save it with skillsdb_remember. Provide precise trigger keywords (synonyms,
+by an existing rule, save it with skillset_db_remember. Provide precise trigger keywords (synonyms,
 framework names, file extensions) — they drive when the rule resurfaces.`;
 
 export async function serveMcp(cwd: string): Promise<void> {
@@ -25,17 +25,17 @@ export async function serveMcp(cwd: string): Promise<void> {
 
   function getDb(): Db {
     if (db) return db;
-    if (!projectRoot) throw new Error('No SkillsDB index found — run `skillsdb init` in the project.');
+    if (!projectRoot) throw new Error('No Skillset DB index found — run `skillset-db init` in the project.');
     const dbPath = projectDbPath(projectRoot);
-    if (!fs.existsSync(dbPath)) throw new Error(`SkillsDB database missing at ${dbPath} — run \`skillsdb init\`.`);
+    if (!fs.existsSync(dbPath)) throw new Error(`Skillset DB database missing at ${dbPath} — run \`skillset-db init\`.`);
     db = new Database(dbPath, { readonly: true, fileMustExist: true });
     return db;
   }
 
-  const server = new McpServer({ name: 'skillsdb', version: '0.1.0' }, { instructions: INSTRUCTIONS });
+  const server = new McpServer({ name: 'skillset-db', version: '0.1.1' }, { instructions: INSTRUCTIONS });
 
   server.registerTool(
-    'skillsdb_match',
+    'skillset_db_match',
     {
       description:
         'Match a task description against the rules database and return the applicable rules. Use before starting work on a topic not covered by already-injected rules.',
@@ -58,11 +58,11 @@ export async function serveMcp(cwd: string): Promise<void> {
   );
 
   server.registerTool(
-    'skillsdb_rules_by_category',
+    'skillset_db_rules_by_category',
     {
       description: 'List all rules of one category, ordered by priority.',
       inputSchema: {
-        category: z.string().describe('Category slug (see skillsdb_categories)'),
+        category: z.string().describe('Category slug (see skillset_db_categories)'),
         limit: z.number().int().min(1).max(200).optional(),
       },
     },
@@ -81,7 +81,7 @@ export async function serveMcp(cwd: string): Promise<void> {
   );
 
   server.registerTool(
-    'skillsdb_rule_detail',
+    'skillset_db_rule_detail',
     {
       description: 'Full detail of one rule by its R-number: complete text, source skill file path (readable with the Read tool), triggers.',
       inputSchema: { id: z.number().int().describe('Rule id (the N in "RN")') },
@@ -107,17 +107,17 @@ export async function serveMcp(cwd: string): Promise<void> {
   );
 
   server.registerTool(
-    'skillsdb_remember',
+    'skillset_db_remember',
     {
       description:
-        'Persist a rule the user stated in conversation so it is injected in future sessions. Stored globally as a generated skill (skillsdb-memory-<tech>) usable even without SkillsDB. Use when the user expresses a lasting rule/preference/correction not covered by existing rules.',
+        'Persist a rule the user stated in conversation so it is injected in future sessions. Stored globally as a generated skill (skillset-db-memory-<tech>) usable even without Skillset DB. Use when the user expresses a lasting rule/preference/correction not covered by existing rules.',
       inputSchema: {
         rule: z.string().min(5).max(300).describe('ONE imperative sentence, self-contained'),
         tech: z
           .string()
           .optional()
           .describe('Framework/language bucket: flutter, react, typescript, supabase... Omit for the detected stack; "general" for stack-agnostic rules'),
-        category: z.string().optional().describe('Category slug (see skillsdb_categories)'),
+        category: z.string().optional().describe('Category slug (see skillset_db_categories)'),
         priority: z.number().int().min(1).max(4).optional().describe('1 critical .. 4 info (default 2)'),
         triggers: z
           .array(z.string())
@@ -128,7 +128,7 @@ export async function serveMcp(cwd: string): Promise<void> {
       },
     },
     async ({ rule, tech, category, priority, triggers, detail }) => {
-      if (!projectRoot) throw new Error('No SkillsDB index found — run `skillsdb init` in the project.');
+      if (!projectRoot) throw new Error('No Skillset DB index found — run `skillset-db init` in the project.');
       const { rememberRule } = await import('../memory/remember.js');
       const { openProjectDb } = await import('../db/database.js');
       const writeDb = openProjectDb(projectDbPath(projectRoot));
@@ -151,13 +151,13 @@ export async function serveMcp(cwd: string): Promise<void> {
   );
 
   server.registerTool(
-    'skillsdb_forget',
+    'skillset_db_forget',
     {
-      description: 'Remove a previously remembered rule by its R-number (only skillsdb-memory rules).',
+      description: 'Remove a previously remembered rule by its R-number (only skillset-db-memory rules).',
       inputSchema: { id: z.number().int().describe('Rule id (the N in "RN")') },
     },
     async ({ id }) => {
-      if (!projectRoot) throw new Error('No SkillsDB index found.');
+      if (!projectRoot) throw new Error('No Skillset DB index found.');
       const { forgetRule } = await import('../memory/remember.js');
       const { openProjectDb } = await import('../db/database.js');
       const writeDb = openProjectDb(projectDbPath(projectRoot));
@@ -171,7 +171,7 @@ export async function serveMcp(cwd: string): Promise<void> {
   );
 
   server.registerTool(
-    'skillsdb_categories',
+    'skillset_db_categories',
     { description: 'List the rule categories with their rule counts.', inputSchema: {} },
     async () => {
       const rows = getDb()
@@ -185,7 +185,7 @@ export async function serveMcp(cwd: string): Promise<void> {
   );
 
   server.registerTool(
-    'skillsdb_status',
+    'skillset_db_status',
     { description: 'Index health: skill/rule counts per scope and staleness.', inputSchema: {} },
     async () => {
       const counts = statusCounts(getDb());

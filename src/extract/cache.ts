@@ -12,7 +12,7 @@ export interface ExtractionCache {
 }
 
 /**
- * Global cross-project cache at ~/.skillsdb/extraction-cache.db: a skill
+ * Global cross-project cache at ~/.skillset-db/extraction-cache.db: a skill
  * content hash is extracted once ever, on any project.
  */
 export function openExtractionCache(): ExtractionCache | null {

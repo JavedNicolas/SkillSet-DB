@@ -3,20 +3,20 @@ import path from 'node:path';
 import { findProjectRoot, globalCacheDir, projectDbDir } from '../paths.js';
 
 export interface ClearOptions {
-  /** Also clear the global extraction cache (~/.skillsdb). */
+  /** Also clear the global extraction cache (~/.skillset-db). */
   cache?: boolean;
 }
 
 /**
  * Drop the project's rules database (and session/lock files). Config, hook
  * and MCP registration, and generated memory skill FILES are kept — run
- * `skillsdb index` to rebuild. Rebuilding is cheap: extraction is served
+ * `skillset-db index` to rebuild. Rebuilding is cheap: extraction is served
  * from the global cache unless --cache wipes that too.
  */
 export function clearCommand(cwd: string, options: ClearOptions): void {
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) {
-    console.log('No SkillsDB index found. Run `skillsdb init` in your project.');
+    console.log('No Skillset DB index found. Run `skillset-db init` in your project.');
     process.exitCode = 1;
     return;
   }
@@ -34,5 +34,5 @@ export function clearCommand(cwd: string, options: ClearOptions): void {
     fs.rmSync(cacheDir, { recursive: true, force: true });
     console.log(`Cleared the global extraction cache at ${cacheDir} — the next index re-extracts every skill.`);
   }
-  console.log('Run `skillsdb index` to rebuild.');
+  console.log('Run `skillset-db index` to rebuild.');
 }

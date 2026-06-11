@@ -10,7 +10,7 @@ let tmpDir: string;
 let db: Db;
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-test-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-test-'));
   db = openProjectDb(path.join(tmpDir, 'test.db'));
   const skillId = db
     .prepare(
@@ -89,7 +89,7 @@ describe('formatRulesBlock', () => {
   it('groups by category and includes rule ids', () => {
     const rules = matchRules(db, 'profile bloc with sealed events');
     const block = formatRulesBlock(rules);
-    expect(block).toContain('<skillsdb-rules>');
+    expect(block).toContain('<skillset-db-rules>');
     expect(block).toContain('[state-management]');
     expect(block).toMatch(/R\d+ P\d/);
   });

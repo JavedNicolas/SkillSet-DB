@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { projectDbDir, SKILLSDB_DIR } from '../paths.js';
+import { projectDbDir, SKILLSET_DB_DIR } from '../paths.js';
 import { removeHook } from '../install/settings.js';
 import { removeMcp } from '../install/mcp.js';
 
@@ -14,8 +14,8 @@ export function uninstallCommand(cwd: string, options: UninstallOptions): void {
   console.log(removeMcp(projectRoot) ? 'MCP server removed from .mcp.json' : 'No MCP entry found');
   if (options.purge) {
     fs.rmSync(projectDbDir(projectRoot), { recursive: true, force: true });
-    console.log(`Removed ${SKILLSDB_DIR}/`);
+    console.log(`Removed ${SKILLSET_DB_DIR}/`);
   } else {
-    console.log(`Index kept at ${SKILLSDB_DIR}/ — pass --purge to delete it.`);
+    console.log(`Index kept at ${SKILLSET_DB_DIR}/ — pass --purge to delete it.`);
   }
 }

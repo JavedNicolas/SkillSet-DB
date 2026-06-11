@@ -38,8 +38,8 @@ function flutterBlocProject(): void {
 const config = { ...DEFAULT_CONFIG, noLlm: true };
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-activation-'));
-  db = openProjectDb(path.join(tmpDir, '.skillsdb', 'skillsdb.db'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-activation-'));
+  db = openProjectDb(path.join(tmpDir, '.skillset-db', 'skillset-db.db'));
   insertSkill('flutter-bloc-arch', 'user', 'Flutter clean architecture with BLoC and freezed');
   insertSkill('flutter-riverpod', 'user', 'Flutter state management with Riverpod providers');
   insertSkill('git-hygiene', 'user', 'Commit message and branching conventions');

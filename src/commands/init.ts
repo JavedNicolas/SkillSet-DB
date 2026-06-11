@@ -53,7 +53,7 @@ export async function initCommand(cwd: string, options: InitOptions): Promise<vo
   try {
     const llmExtract = noLlm ? undefined : makeLlmExtractor(db, config);
     if (!noLlm && !llmExtract) {
-      console.log('claude CLI not found — using heuristic extraction (re-run `skillsdb index` later to upgrade).');
+      console.log('claude CLI not found — using heuristic extraction (re-run `skillset-db index` later to upgrade).');
     }
     console.log('Indexing skills...');
     const summary = await runIndex(db, projectRoot, {
@@ -75,8 +75,8 @@ export async function initCommand(cwd: string, options: InitOptions): Promise<vo
     }
 
     console.log(
-      `\nSkillsDB ready: ${summary.scanned} skills, ${summary.rules} rules.\n` +
-        'Rules matching each prompt are now injected automatically. Try: skillsdb match "your task"',
+      `\nSkillset DB ready: ${summary.scanned} skills, ${summary.rules} rules.\n` +
+        'Rules matching each prompt are now injected automatically. Try: skillset-db match "your task"',
     );
   } finally {
     db.close();
@@ -128,6 +128,6 @@ async function maybeSelectSkills(
   await applyActivation(db, projectRoot, config, { noLlm: true });
   console.log(
     `${chosen.length}/${skills.length} skills active. This refines automatically once the project gains a tech stack; ` +
-      'override anytime with skillsdb enable/disable.',
+      'override anytime with skillset-db enable/disable.',
   );
 }

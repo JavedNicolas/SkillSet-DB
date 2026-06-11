@@ -32,7 +32,7 @@ export async function extractRules(
     else llmReferences.push(ref);
   }
 
-  // SkillsDB-generated memory skills: references carry the exact metadata the
+  // Skillset DB-generated memory skills: references carry the exact metadata the
   // user (or Claude) provided; the SKILL.md body is a human-readable mirror —
   // extracting it too would duplicate every rule.
   if (isGeneratedMemorySkill(skill)) {
@@ -54,6 +54,6 @@ function isGeneratedMemorySkill(skill: ScannedSkill): boolean {
   return (
     typeof metadata === 'object' &&
     metadata !== null &&
-    (metadata as Record<string, unknown>).generator === 'skillsdb'
+    (metadata as Record<string, unknown>).generator === 'skillset-db'
   );
 }

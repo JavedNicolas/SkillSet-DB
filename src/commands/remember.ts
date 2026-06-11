@@ -14,7 +14,7 @@ export interface RememberCmdOptions {
 export async function rememberCommand(cwd: string, ruleText: string, options: RememberCmdOptions): Promise<void> {
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) {
-    console.log('No SkillsDB index found. Run `skillsdb init` in your project.');
+    console.log('No Skillset DB index found. Run `skillset-db init` in your project.');
     process.exitCode = 1;
     return;
   }
@@ -46,7 +46,7 @@ export interface ImportMemoryOptions {
 export async function importMemoryCommand(cwd: string, options: ImportMemoryOptions): Promise<void> {
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) {
-    console.log('No SkillsDB index found. Run `skillsdb init` in your project.');
+    console.log('No Skillset DB index found. Run `skillset-db init` in your project.');
     process.exitCode = 1;
     return;
   }
@@ -71,7 +71,7 @@ export async function importMemoryCommand(cwd: string, options: ImportMemoryOpti
   }
 }
 
-/** `skillsdb forget` with no id: show what can be forgotten, with R-numbers. */
+/** `skillset-db forget` with no id: show what can be forgotten, with R-numbers. */
 function listMemoryRules(projectRoot: string): void {
   const db = openProjectDb(projectDbPath(projectRoot), { readonly: true });
   try {
@@ -79,14 +79,14 @@ function listMemoryRules(projectRoot: string): void {
       .prepare(
         `SELECT r.id, r.priority, r.rule_text, s.name AS skill, s.scope
          FROM rules r JOIN skills s ON s.id = r.skill_id
-         WHERE s.name LIKE 'skillsdb-memory-%' ORDER BY s.name, r.id`,
+         WHERE s.name LIKE 'skillset-db-memory-%' ORDER BY s.name, r.id`,
       )
       .all() as { id: number; priority: number; rule_text: string; skill: string; scope: string }[];
     if (rows.length === 0) {
-      console.log('No remembered rules yet — save one with skillsdb remember "<rule>".');
+      console.log('No remembered rules yet — save one with skillset-db remember "<rule>".');
       return;
     }
-    console.log('Remembered rules (forget one with skillsdb forget <R-number>):');
+    console.log('Remembered rules (forget one with skillset-db forget <R-number>):');
     for (const row of rows) {
       console.log(`  R${row.id} P${row.priority} [${row.skill}/${row.scope}] ${row.rule_text}`);
     }
@@ -98,7 +98,7 @@ function listMemoryRules(projectRoot: string): void {
 export async function forgetCommand(cwd: string, id: string | undefined): Promise<void> {
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) {
-    console.log('No SkillsDB index found. Run `skillsdb init` in your project.');
+    console.log('No Skillset DB index found. Run `skillset-db init` in your project.');
     process.exitCode = 1;
     return;
   }
@@ -108,7 +108,7 @@ export async function forgetCommand(cwd: string, id: string | undefined): Promis
   }
   const ruleId = Number(id.replace(/^[rR]/, ''));
   if (!Number.isInteger(ruleId)) {
-    console.log(`Invalid rule id '${id}' — pass the R-number shown by skillsdb list --rules.`);
+    console.log(`Invalid rule id '${id}' — pass the R-number shown by skillset-db list --rules.`);
     process.exitCode = 1;
     return;
   }
@@ -118,7 +118,7 @@ export async function forgetCommand(cwd: string, id: string | undefined): Promis
     console.log(
       removed
         ? `Forgot rule R${ruleId}.`
-        : `R${ruleId} is not a remembered rule (only skillsdb-memory rules can be forgotten — edit the skill file for the rest).`,
+        : `R${ruleId} is not a remembered rule (only skillset-db-memory rules can be forgotten — edit the skill file for the rest).`,
     );
     if (!removed) process.exitCode = 1;
   } finally {

@@ -22,15 +22,15 @@ function writeMemory(name: string, type: string, description: string, body: stri
 }
 
 beforeEach(() => {
-  tmpProject = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-import-proj-'));
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-import-home-'));
-  process.env.SKILLSDB_HOME_OVERRIDE = tmpHome;
-  db = openProjectDb(path.join(tmpProject, '.skillsdb', 'skillsdb.db'));
+  tmpProject = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-import-proj-'));
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-import-home-'));
+  process.env.SKILLSET_DB_HOME_OVERRIDE = tmpHome;
+  db = openProjectDb(path.join(tmpProject, '.skillset-db', 'skillset-db.db'));
 });
 
 afterEach(() => {
   db.close();
-  delete process.env.SKILLSDB_HOME_OVERRIDE;
+  delete process.env.SKILLSET_DB_HOME_OVERRIDE;
   fs.rmSync(tmpProject, { recursive: true, force: true });
   fs.rmSync(tmpHome, { recursive: true, force: true });
 });
@@ -58,7 +58,7 @@ describe('importMemoryRules', () => {
       .get() as { rule_text: string; scope: string; name: string };
     expect(rule.rule_text).toContain('Commit often');
     expect(rule.scope).toBe('project');
-    expect(rule.name).toMatch(/^skillsdb-memory-/);
+    expect(rule.name).toMatch(/^skillset-db-memory-/);
     // the generated skill file exists in the project
     expect(fs.existsSync(path.join(tmpProject, '.claude', 'skills', rule.name, 'SKILL.md'))).toBe(true);
   });

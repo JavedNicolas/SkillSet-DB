@@ -15,9 +15,9 @@ function rule(id: number): MatchedRule {
 }
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-session-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-session-'));
   fs.mkdirSync(projectDbDir(tmpDir), { recursive: true });
-  db = openProjectDb(path.join(tmpDir, '.skillsdb', 'skillsdb.db'));
+  db = openProjectDb(path.join(tmpDir, '.skillset-db', 'skillset-db.db'));
   const skillId = db
     .prepare(
       `INSERT INTO skills (name, scope, path, dir_path, content_hash, extraction_status)

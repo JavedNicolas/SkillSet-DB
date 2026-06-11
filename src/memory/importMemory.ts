@@ -5,7 +5,7 @@ import matter from 'gray-matter';
 import { z } from 'zod';
 import type { Db } from '../db/database.js';
 import { getMeta, setMeta } from '../db/queries.js';
-import type { SkillsdbConfig } from '../config.js';
+import type { SkillsetDbConfig } from '../config.js';
 import { callClaudeJson, findClaudeBin } from '../extract/claudeCli.js';
 import { bestCategory, keywords } from '../extract/heuristic.js';
 import { homeDir } from '../paths.js';
@@ -64,7 +64,7 @@ export function memoryDirForProject(projectRoot: string): string {
 export async function importMemoryRules(
   db: Db,
   projectRoot: string,
-  config: SkillsdbConfig,
+  config: SkillsetDbConfig,
   options: { noLlm?: boolean; onProgress?: (m: string) => void } = {},
 ): Promise<ImportSummary> {
   const progress = options.onProgress ?? (() => {});

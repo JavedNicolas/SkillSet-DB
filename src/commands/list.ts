@@ -10,7 +10,7 @@ export interface ListOptions {
 export function listCommand(cwd: string, options: ListOptions): void {
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) {
-    console.log('No SkillsDB index found. Run `skillsdb init` in your project.');
+    console.log('No Skillset DB index found. Run `skillset-db init` in your project.');
     process.exitCode = 1;
     return;
   }

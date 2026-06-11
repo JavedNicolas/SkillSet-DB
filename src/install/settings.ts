@@ -6,16 +6,17 @@ interface HookEntry {
   hooks: { type: string; command: string; timeout?: number }[];
 }
 
-// matches both the dev path (.../SkillsDB/dist/hook.js) and the published
-// package path (.../node_modules/skills-db/dist/hook.js)
-const MARKER_RE = /skills-?db/i;
+// matches the hook command path for both the dev checkout
+// (.../SkillSet-DB/dist/hook.js) and the published package
+// (.../node_modules/skillset-db/dist/hook.js)
+const MARKER_RE = /skillset-?db/i;
 
 export function settingsPath(projectRoot: string): string {
   return path.join(projectRoot, '.claude', 'settings.json');
 }
 
 /**
- * Hook events SkillsDB registers:
+ * Hook events Skillset DB registers:
  *  - UserPromptSubmit: match every user prompt
  *  - PostToolUse on ExitPlanMode: match the approved plan text
  *  - PostToolUse on TaskCreate/TodoWrite: match Claude's own task list, the
@@ -34,9 +35,9 @@ const HOOK_EVENTS: { event: string; matcher?: string }[] = [
 ];
 
 /**
- * Merge the SkillsDB hooks into the project's .claude/settings.json.
+ * Merge the Skillset DB hooks into the project's .claude/settings.json.
  * Append-only and idempotent: existing hooks (e.g. ruflo's) are never
- * touched, and re-running init never duplicates. An existing skillsdb entry
+ * touched, and re-running init never duplicates. An existing skillset-db entry
  * with an outdated matcher is upgraded in place.
  */
 export function installHook(projectRoot: string, hookCommand: string): 'installed' | 'already-installed' {
@@ -50,7 +51,7 @@ export function installHook(projectRoot: string, hookCommand: string): 'installe
   for (const { event, matcher } of HOOK_EVENTS) {
     if (!Array.isArray(hooks[event])) hooks[event] = [];
     const entries = hooks[event] as HookEntry[];
-    const existing = entries.find(isSkillsdbEntry);
+    const existing = entries.find(isSkillsetDbEntry);
     if (existing) {
       if (matcher && existing.matcher !== matcher) {
         existing.matcher = matcher;
@@ -77,7 +78,7 @@ export function removeHook(projectRoot: string): boolean {
   for (const { event } of HOOK_EVENTS) {
     if (!Array.isArray(hooks[event])) continue;
     const entries = hooks[event] as HookEntry[];
-    const kept = entries.filter((e) => !isSkillsdbEntry(e));
+    const kept = entries.filter((e) => !isSkillsetDbEntry(e));
     if (kept.length !== entries.length) {
       hooks[event] = kept;
       removed = true;
@@ -91,15 +92,15 @@ export function hookInstalled(projectRoot: string): boolean {
   const settings = readJson(settingsPath(projectRoot));
   const hooks = settings.hooks as Record<string, unknown> | undefined;
   return HOOK_EVENTS.every(
-    ({ event }) => Array.isArray(hooks?.[event]) && hasSkillsdbHook(hooks[event] as HookEntry[]),
+    ({ event }) => Array.isArray(hooks?.[event]) && hasSkillsetDbHook(hooks[event] as HookEntry[]),
   );
 }
 
-function hasSkillsdbHook(entries: HookEntry[]): boolean {
-  return entries.some(isSkillsdbEntry);
+function hasSkillsetDbHook(entries: HookEntry[]): boolean {
+  return entries.some(isSkillsetDbEntry);
 }
 
-function isSkillsdbEntry(entry: HookEntry): boolean {
+function isSkillsetDbEntry(entry: HookEntry): boolean {
   return (
     Array.isArray(entry?.hooks) && entry.hooks.some((h) => typeof h?.command === 'string' && MARKER_RE.test(h.command))
   );

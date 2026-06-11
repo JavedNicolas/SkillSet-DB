@@ -9,7 +9,7 @@ const HEADINGS = {
   prompt: 'Rules from installed skills that apply to this task — follow them:',
   plan: 'Rules from installed skills that apply to the approved plan — follow them during implementation:',
   tasks: 'Rules from installed skills that apply to your task list — follow them:',
-  compact: 'Context was compacted — re-stating the SkillsDB rules that apply to the current work:',
+  compact: 'Context was compacted — re-stating the Skillset DB rules that apply to the current work:',
   subagent: "Rules from this project's skills that apply to the session's current work — follow them:",
 } as const;
 
@@ -26,7 +26,7 @@ export function formatRulesBlock(
     byCategory.set(rule.category, list);
   }
 
-  const lines: string[] = ['<skillsdb-rules>'];
+  const lines: string[] = ['<skillset-db-rules>'];
   lines.push(HEADINGS[opts.heading ?? 'prompt']);
   for (const [category, list] of byCategory) {
     lines.push(`[${category}]`);
@@ -34,11 +34,11 @@ export function formatRulesBlock(
       lines.push(`- R${rule.id} P${rule.priority} ${rule.ruleText} (${rule.skill})`);
     }
   }
-  lines.push('Full text: mcp__skillsdb__skillsdb_rule_detail with the R-number.');
+  lines.push('Full text: mcp__skillset-db__skillset_db_rule_detail with the R-number.');
   if (opts.stale) {
     lines.push('Note: some skill files changed since last index; rules may be slightly stale (sync started).');
   }
-  lines.push('</skillsdb-rules>');
+  lines.push('</skillset-db-rules>');
   return lines.join('\n');
 }
 
@@ -49,14 +49,14 @@ export function formatRulesBlock(
 export function formatStatusBlock(counts: { rules: number; categories: number; skills: number }): string {
   if (counts.rules === 0) return '';
   return [
-    '<skillsdb-status>',
-    `SkillsDB is active on this project: ${counts.rules} rules from ${counts.skills} skills across ${counts.categories} categories.`,
-    'Rules matching each task are injected automatically. For work not covered by injected rules, query mcp__skillsdb__skillsdb_match; full rule text via mcp__skillsdb__skillsdb_rule_detail.',
-    '</skillsdb-status>',
+    '<skillset-db-status>',
+    `Skillset DB is active on this project: ${counts.rules} rules from ${counts.skills} skills across ${counts.categories} categories.`,
+    'Rules matching each task are injected automatically. For work not covered by injected rules, query mcp__skillset-db__skillset_db_match; full rule text via mcp__skillset-db__skillset_db_rule_detail.',
+    '</skillset-db-status>',
   ].join('\n');
 }
 
-/** Human-readable output for `skillsdb match` on a terminal. */
+/** Human-readable output for `skillset-db match` on a terminal. */
 export function formatRulesHuman(rules: MatchedRule[]): string {
   if (rules.length === 0) return 'No matching rules.';
   const lines: string[] = [];

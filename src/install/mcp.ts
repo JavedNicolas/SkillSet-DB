@@ -17,8 +17,11 @@ export function hookCommand(): string {
   return `"${process.execPath}" "${distPaths().hookJs}"`;
 }
 
+/** Server key used in .mcp.json (kebab-case, matches the package name). */
+const SERVER_KEY = 'skillset-db';
+
 /**
- * Register the skillsdb MCP server in the project's .mcp.json
+ * Register the skillset-db MCP server in the project's .mcp.json
  * (merge, idempotent).
  */
 export function installMcp(projectRoot: string): 'installed' | 'already-installed' {
@@ -26,8 +29,8 @@ export function installMcp(projectRoot: string): 'installed' | 'already-installe
   const config = readJson(file);
   if (typeof config.mcpServers !== 'object' || config.mcpServers === null) config.mcpServers = {};
   const servers = config.mcpServers as Record<string, unknown>;
-  if (servers.skillsdb) return 'already-installed';
-  servers.skillsdb = {
+  if (servers[SERVER_KEY]) return 'already-installed';
+  servers[SERVER_KEY] = {
     type: 'stdio',
     command: process.execPath,
     args: [distPaths().cliJs, 'serve', '--mcp'],
@@ -40,8 +43,8 @@ export function removeMcp(projectRoot: string): boolean {
   const file = mcpJsonPath(projectRoot);
   const config = readJson(file);
   const servers = config.mcpServers as Record<string, unknown> | undefined;
-  if (!servers || !servers.skillsdb) return false;
-  delete servers.skillsdb;
+  if (!servers || !servers[SERVER_KEY]) return false;
+  delete servers[SERVER_KEY];
   writeJson(file, config);
   return true;
 }
@@ -49,5 +52,5 @@ export function removeMcp(projectRoot: string): boolean {
 export function mcpInstalled(projectRoot: string): boolean {
   const config = readJson(mcpJsonPath(projectRoot));
   const servers = config.mcpServers as Record<string, unknown> | undefined;
-  return Boolean(servers?.skillsdb);
+  return Boolean(servers?.[SERVER_KEY]);
 }

@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "skillsdb": {
+    "skillset-db": {
       "type": "stdio",
       "command": "/Users/nicolas/.nvm/versions/node/v20.13.1/bin/node",
       "args": [

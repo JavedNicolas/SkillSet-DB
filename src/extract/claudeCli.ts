@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { Db } from '../db/database.js';
-import type { SkillsdbConfig } from '../config.js';
+import type { SkillsetDbConfig } from '../config.js';
 import type { ScannedSkill } from '../scan/scanner.js';
 import { addCategory, categoryCount } from '../db/queries.js';
 import { homeDir } from '../paths.js';
@@ -22,7 +22,7 @@ const CALL_TIMEOUT_MS = 120_000;
  * Build the LLM extractor backed by the headless claude CLI, with the global
  * content-hash cache. Returns null when the claude CLI is not available.
  */
-export function makeLlmExtractor(db: Db, config: SkillsdbConfig): LlmExtractor | null {
+export function makeLlmExtractor(db: Db, config: SkillsetDbConfig): LlmExtractor | null {
   const claudeBin = findClaudeBin();
   if (!claudeBin) return null;
   const cache = openExtractionCache();
@@ -99,8 +99,8 @@ async function callClaude(
 
 /**
  * Headless claude call returning the fence-stripped result string, with the
- * recursion guards every SkillsDB subprocess needs (tmpdir cwd, hooks
- * disabled, SKILLSDB_EXTRACTION env). Shared by extraction and activation.
+ * recursion guards every Skillset DB subprocess needs (tmpdir cwd, hooks
+ * disabled, SKILLSET_DB_EXTRACTION env). Shared by extraction and activation.
  */
 export async function callClaudeJson(
   claudeBin: string,
@@ -133,9 +133,9 @@ export async function callClaudeJson(
       {
         timeout: CALL_TIMEOUT_MS,
         maxBuffer: 16 * 1024 * 1024,
-        // recursion guard: never fire SkillsDB's own hook from extraction
+        // recursion guard: never fire Skillset DB's own hook from extraction
         cwd: os.tmpdir(),
-        env: { ...process.env, SKILLSDB_EXTRACTION: '1' },
+        env: { ...process.env, SKILLSET_DB_EXTRACTION: '1' },
       },
       (err, out) => resolve(err ? null : out),
     );
@@ -176,7 +176,7 @@ function knownCategories(db: Db): Set<string> {
 }
 
 export function findClaudeBin(): string | null {
-  const override = process.env.SKILLSDB_CLAUDE_BIN;
+  const override = process.env.SKILLSET_DB_CLAUDE_BIN;
   if (override && fs.existsSync(override)) return override;
   try {
     const found = execFileSync('which', ['claude'], { encoding: 'utf8' }).trim();

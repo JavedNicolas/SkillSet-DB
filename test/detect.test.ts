@@ -50,7 +50,7 @@ describe('detectStack', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-detect-'));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-detect-'));
   });
 
   afterEach(() => {

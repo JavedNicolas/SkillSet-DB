@@ -9,13 +9,13 @@ import { uninstallCommand } from './commands/uninstall.js';
 const program = new Command();
 
 program
-  .name('skillsdb')
+  .name('skillset-db')
   .description('Skill-rules database for Claude Code — never forget a rule again')
-  .version('0.1.0');
+  .version('0.1.1');
 
 program
   .command('init')
-  .description('Set up SkillsDB for this project: index, hook, MCP server')
+  .description('Set up Skillset DB for this project: index, hook, MCP server')
   .option('--no-hook', 'Do not register the UserPromptSubmit hook')
   .option('--no-mcp', 'Do not register the MCP server')
   .option('--no-llm', 'Skip LLM extraction (heuristic only)')
@@ -26,7 +26,7 @@ program
 
 program
   .command('match <text>')
-  .description('Show the rules SkillsDB would inject for a task description')
+  .description('Show the rules Skillset DB would inject for a task description')
   .option('--category <slug>', 'Restrict matching to one category')
   .option('--limit <n>', 'Max rules to return')
   .action((text, opts) => {
@@ -44,7 +44,7 @@ program
 
 program
   .command('serve')
-  .description('Start the SkillsDB MCP server')
+  .description('Start the Skillset DB MCP server')
   .option('--mcp', 'stdio MCP mode (default)')
   .action(async () => {
     const { serveMcp } = await import('./mcp/server.js');
@@ -118,8 +118,8 @@ program
 
 program
   .command('clear')
-  .description('Drop the project rules database (config and hooks kept); rebuild with skillsdb index')
-  .option('--cache', 'Also clear the global extraction cache in ~/.skillsdb')
+  .description('Drop the project rules database (config and hooks kept); rebuild with skillset-db index')
+  .option('--cache', 'Also clear the global extraction cache in ~/.skillset-db')
   .action(async (opts) => {
     const { clearCommand } = await import('./commands/clear.js');
     clearCommand(process.cwd(), opts);
@@ -160,7 +160,7 @@ program
 program
   .command('uninstall')
   .description('Remove the hook and MCP registration from this project')
-  .option('--purge', 'Also delete the .skillsdb/ index directory')
+  .option('--purge', 'Also delete the .skillset-db/ index directory')
   .action((opts) => {
     uninstallCommand(process.cwd(), opts);
   });

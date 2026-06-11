@@ -1,4 +1,4 @@
-import { loadConfig, saveConfig, type SkillsdbConfig } from '../config.js';
+import { loadConfig, saveConfig, type SkillsetDbConfig } from '../config.js';
 import { openProjectDb, type Db } from '../db/database.js';
 import { applyActivation } from '../detect/activation.js';
 import { findProjectRoot, projectDbPath } from '../paths.js';
@@ -12,14 +12,14 @@ interface SkillStateRow {
 }
 
 /**
- * Hard per-project overrides: `skillsdb enable <name>` / `disable <name>`.
- * Saved in .skillsdb/config.json; they outrank auto-activation. No LLM call
+ * Hard per-project overrides: `skillset-db enable <name>` / `disable <name>`.
+ * Saved in .skillset-db/config.json; they outrank auto-activation. No LLM call
  * here — cached auto decisions are reused, only the precedence re-resolves.
  */
 export async function setSkillOverride(cwd: string, name: string, enable: boolean): Promise<void> {
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) {
-    console.log('No SkillsDB index found. Run `skillsdb init` in your project.');
+    console.log('No Skillset DB index found. Run `skillset-db init` in your project.');
     process.exitCode = 1;
     return;
   }
@@ -55,7 +55,7 @@ export async function setSkillOverride(cwd: string, name: string, enable: boolea
 }
 
 /**
- * `skillsdb add` — interactive picker over the skills that exist on this
+ * `skillset-db add` — interactive picker over the skills that exist on this
  * machine but are inactive for this project; selected ones become hard
  * enabled overrides.
  */
@@ -64,7 +64,7 @@ export async function addCommand(cwd: string): Promise<void> {
 }
 
 /**
- * `skillsdb edit` — toggle list of every skill with its current activation
+ * `skillset-db edit` — toggle list of every skill with its current activation
  * state pre-checked. Only toggles become overrides: skills left in their
  * current state stay governed by auto-activation.
  */
@@ -74,13 +74,13 @@ export async function editCommand(cwd: string): Promise<void> {
 
 async function interactiveActivation(cwd: string, mode: 'add' | 'edit'): Promise<void> {
   if (!process.stdin.isTTY || !process.stdout.isTTY) {
-    console.log(`skillsdb ${mode} is interactive and needs a terminal. Use skillsdb enable/disable <name> instead.`);
+    console.log(`skillset-db ${mode} is interactive and needs a terminal. Use skillset-db enable/disable <name> instead.`);
     process.exitCode = 1;
     return;
   }
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) {
-    console.log('No SkillsDB index found. Run `skillsdb init` in your project.');
+    console.log('No Skillset DB index found. Run `skillset-db init` in your project.');
     process.exitCode = 1;
     return;
   }
@@ -95,7 +95,7 @@ async function interactiveActivation(cwd: string, mode: 'add' | 'edit'): Promise
       .all() as SkillStateRow[];
     const listed = mode === 'add' ? all.filter((s) => !s.active) : all;
     if (listed.length === 0) {
-      console.log(mode === 'add' ? 'All skills are already active.' : 'No skills indexed yet — run skillsdb index.');
+      console.log(mode === 'add' ? 'All skills are already active.' : 'No skills indexed yet — run skillset-db index.');
       return;
     }
 
@@ -145,7 +145,7 @@ async function interactiveActivation(cwd: string, mode: 'add' | 'edit'): Promise
   }
 }
 
-function setOverride(config: SkillsdbConfig, name: string, enable: boolean): void {
+function setOverride(config: SkillsetDbConfig, name: string, enable: boolean): void {
   config.enabledSkills = config.enabledSkills.filter((n) => n !== name);
   config.disabledSkills = config.disabledSkills.filter((n) => n !== name);
   (enable ? config.enabledSkills : config.disabledSkills).push(name);

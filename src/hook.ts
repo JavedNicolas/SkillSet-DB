@@ -1,5 +1,5 @@
 /**
- * Hook entry — the product's hot path. Handles every SkillsDB hook event:
+ * Hook entry — the product's hot path. Handles every Skillset DB hook event:
  *  - UserPromptSubmit: match the user's prompt, print the rules block (stdout
  *    is injected as context).
  *  - PostToolUse on ExitPlanMode: match the approved plan text (much richer
@@ -32,7 +32,7 @@ type EventKind = 'prompt' | 'plan' | 'tasks';
 const SUBAGENT_MAX_RULES = 10;
 
 async function main(): Promise<void> {
-  if (process.env.SKILLSDB_EXTRACTION === '1') return;
+  if (process.env.SKILLSET_DB_EXTRACTION === '1') return;
 
   const input = JSON.parse(await readStdin(2000));
   const event: unknown = input.hook_event_name;

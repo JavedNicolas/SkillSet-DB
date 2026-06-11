@@ -7,7 +7,7 @@ import {
   setSkillActivation,
   type SkillRow,
 } from '../db/queries.js';
-import type { SkillsdbConfig } from '../config.js';
+import type { SkillsetDbConfig } from '../config.js';
 import { callClaudeJson, findClaudeBin } from '../extract/claudeCli.js';
 import { homeDir, skillRoots } from '../paths.js';
 import type { StackFileSnapshot } from '../db/queries.js';
@@ -52,7 +52,7 @@ interface AutoActivationCache {
 }
 
 /** LLM activator backed by the headless claude CLI; null when unavailable. */
-export function makeLlmActivator(config: SkillsdbConfig): LlmActivator | null {
+export function makeLlmActivator(config: SkillsetDbConfig): LlmActivator | null {
   const claudeBin = findClaudeBin();
   if (!claudeBin) return null;
   return async (profile, skills) => {
@@ -182,7 +182,7 @@ export function fallbackActivation(profile: StackProfile, skills: SkillSummary[]
 export async function applyActivation(
   db: Db,
   projectRoot: string,
-  config: SkillsdbConfig,
+  config: SkillsetDbConfig,
   options: ApplyActivationOptions = {},
 ): Promise<ActivationSummary> {
   const progress = options.onProgress ?? (() => {});

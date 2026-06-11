@@ -39,7 +39,7 @@ const TECH_PREFERENCE = [
 
 /**
  * Persist a conversation rule as a generated skill on disk AND index it
- * immediately. The file is the source of truth: it survives SkillsDB being
+ * immediately. The file is the source of truth: it survives Skillset DB being
  * removed (it is a normal skill Claude can load natively) and propagates to
  * other projects through their own indexing.
  */
@@ -53,7 +53,7 @@ export async function rememberRule(
   if (!ruleText) throw new Error('Rule text is empty.');
 
   const tech = normalizeTech(input.tech) ?? techFromStack(db) ?? 'general';
-  const skillName = `skillsdb-memory-${tech}`;
+  const skillName = `skillset-db-memory-${tech}`;
   const skillDir =
     scope === 'project'
       ? path.join(projectRoot, '.claude', 'skills', skillName)
@@ -100,7 +100,7 @@ export async function forgetRule(db: Db, ruleId: number): Promise<boolean> {
        JOIN skills s ON s.id = r.skill_id WHERE r.id = ?`,
     )
     .get(ruleId) as { source_file: string; name: string; dir_path: string; scope: string } | undefined;
-  if (!row || !row.name.startsWith('skillsdb-memory-')) return false;
+  if (!row || !row.name.startsWith('skillset-db-memory-')) return false;
   if (!row.source_file.includes(`references${path.sep}`)) return false;
 
   fs.rmSync(row.source_file, { force: true });
@@ -113,7 +113,7 @@ export async function forgetRule(db: Db, ruleId: number): Promise<boolean> {
     db.prepare('DELETE FROM skills WHERE dir_path = ? AND scope = ?').run(row.dir_path, row.scope);
     return true;
   }
-  const tech = row.name.replace('skillsdb-memory-', '');
+  const tech = row.name.replace('skillset-db-memory-', '');
   regenerateSkillMd(row.dir_path, row.name, tech);
   await indexMemorySkill(db, row.dir_path, row.scope as SkillScope);
   return true;
@@ -121,7 +121,7 @@ export async function forgetRule(db: Db, ruleId: number): Promise<boolean> {
 
 /**
  * Rebuild SKILL.md from the reference files. The body mirrors every rule as
- * a bullet so Claude's native skill loading works without SkillsDB — the
+ * a bullet so Claude's native skill loading works without Skillset DB — the
  * extractor skips this body (metadata.generator) to avoid duplicates.
  */
 function regenerateSkillMd(skillDir: string, skillName: string, tech: string): void {
@@ -137,8 +137,8 @@ function regenerateSkillMd(skillDir: string, skillName: string, tech: string): v
   const techLabel = tech === 'general' ? 'any project' : `${tech} projects`;
   const description =
     tech === 'general'
-      ? 'Rules the user stated in conversation, remembered by SkillsDB. Apply them in every project.'
-      : `Rules the user stated in conversation for ${tech}, remembered by SkillsDB. Use when working with ${tech} code.`;
+      ? 'Rules the user stated in conversation, remembered by Skillset DB. Apply them in every project.'
+      : `Rules the user stated in conversation for ${tech}, remembered by Skillset DB. Use when working with ${tech} code.`;
 
   fs.writeFileSync(
     path.join(skillDir, 'SKILL.md'),
@@ -147,12 +147,12 @@ function regenerateSkillMd(skillDir: string, skillName: string, tech: string): v
       `name: ${skillName}`,
       `description: ${yamlEscape(description)}`,
       'metadata:',
-      '  generator: skillsdb',
+      '  generator: skillset-db',
       '---',
       '',
       `# Remembered rules (${techLabel})`,
       '',
-      'Stated by the user in conversation and captured with `skillsdb remember` / the skillsdb_remember MCP tool.',
+      'Stated by the user in conversation and captured with `skillset-db remember` / the skillset_db_remember MCP tool.',
       'Full metadata lives in `references/`. Follow every rule below:',
       '',
       ...rules.map((r) => `- [${r.impact}] ${r.title}`),

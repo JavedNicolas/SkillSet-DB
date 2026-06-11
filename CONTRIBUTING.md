@@ -1,20 +1,20 @@
-# Contributing to SkillsDB
+# Contributing to Skillset DB
 
-Thanks for your interest in improving SkillsDB. This guide covers local setup, the
+Thanks for your interest in improving Skillset DB. This guide covers local setup, the
 development loop, and the conventions the project follows.
 
 ## Prerequisites
 
 - **Node.js ≥ 20** (matches the `engines` field; the build targets Node 20).
 - **The `claude` CLI is optional.** It powers LLM rule extraction and stack-relevance
-  decisions. Without it, SkillsDB falls back to deterministic/heuristic extraction — the
+  decisions. Without it, Skillset DB falls back to deterministic/heuristic extraction — the
   project still builds, tests, and runs, so you do not need it to contribute.
 
 ## Setup
 
 ```bash
 git clone https://github.com/JavedNicolas/SkillSet-DB.git
-cd SkillsDB
+cd Skillset DB
 npm install
 ```
 

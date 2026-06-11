@@ -9,30 +9,30 @@ export interface SkillRoot {
   dir: string;
 }
 
-export const SKILLSDB_DIR = '.skillsdb';
-export const DB_FILENAME = 'skillsdb.db';
+export const SKILLSET_DB_DIR = '.skillset-db';
+export const DB_FILENAME = 'skillset-db.db';
 
 export function homeDir(): string {
-  return process.env.SKILLSDB_HOME_OVERRIDE ?? os.homedir();
+  return process.env.SKILLSET_DB_HOME_OVERRIDE ?? os.homedir();
 }
 
 export function globalCacheDir(): string {
-  return path.join(homeDir(), '.skillsdb');
+  return path.join(homeDir(), '.skillset-db');
 }
 
 export function projectDbDir(projectRoot: string): string {
-  return path.join(projectRoot, SKILLSDB_DIR);
+  return path.join(projectRoot, SKILLSET_DB_DIR);
 }
 
 export function projectDbPath(projectRoot: string): string {
   return path.join(projectDbDir(projectRoot), DB_FILENAME);
 }
 
-/** Walk up from `startDir` looking for a `.skillsdb/skillsdb.db`. */
+/** Walk up from `startDir` looking for a `.skillset-db/skillset-db.db`. */
 export function findProjectRoot(startDir: string): string | null {
   let dir = path.resolve(startDir);
   for (;;) {
-    if (fs.existsSync(path.join(dir, SKILLSDB_DIR, DB_FILENAME))) return dir;
+    if (fs.existsSync(path.join(dir, SKILLSET_DB_DIR, DB_FILENAME))) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) return null;
     dir = parent;

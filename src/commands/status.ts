@@ -7,7 +7,7 @@ import { findProjectRoot, projectDbPath } from '../paths.js';
 export function statusCommand(cwd: string): void {
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) {
-    console.log('No SkillsDB index found. Run `skillsdb init` in your project.');
+    console.log('No Skillset DB index found. Run `skillset-db init` in your project.');
     process.exitCode = 1;
     return;
   }
@@ -30,7 +30,7 @@ export function statusCommand(cwd: string): void {
     printOverrideWarnings(db, projectRoot);
     const stale = staleFileCount(db);
     if (stale > 0) {
-      console.log(`\n⚠ ${stale} skill file(s) changed since last index — run \`skillsdb sync\`.`);
+      console.log(`\n⚠ ${stale} skill file(s) changed since last index — run \`skillset-db sync\`.`);
     }
   } finally {
     db.close();

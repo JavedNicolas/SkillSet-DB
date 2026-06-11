@@ -11,15 +11,15 @@ let tmpHome: string;
 let db: Db;
 
 beforeEach(() => {
-  tmpProject = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-mem-proj-'));
-  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-mem-home-'));
-  process.env.SKILLSDB_HOME_OVERRIDE = tmpHome;
-  db = openProjectDb(path.join(tmpProject, '.skillsdb', 'skillsdb.db'));
+  tmpProject = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-mem-proj-'));
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-mem-home-'));
+  process.env.SKILLSET_DB_HOME_OVERRIDE = tmpHome;
+  db = openProjectDb(path.join(tmpProject, '.skillset-db', 'skillset-db.db'));
 });
 
 afterEach(() => {
   db.close();
-  delete process.env.SKILLSDB_HOME_OVERRIDE;
+  delete process.env.SKILLSET_DB_HOME_OVERRIDE;
   fs.rmSync(tmpProject, { recursive: true, force: true });
   fs.rmSync(tmpHome, { recursive: true, force: true });
 });
@@ -32,11 +32,11 @@ describe('rememberRule', () => {
       priority: 1,
       triggers: ['var', 'types', 'declaration', '.ts'],
     });
-    expect(result.skillName).toBe('skillsdb-memory-typescript');
-    expect(result.skillDir).toBe(path.join(tmpHome, '.claude', 'skills', 'skillsdb-memory-typescript'));
+    expect(result.skillName).toBe('skillset-db-memory-typescript');
+    expect(result.skillDir).toBe(path.join(tmpHome, '.claude', 'skills', 'skillset-db-memory-typescript'));
     expect(fs.existsSync(result.referencePath)).toBe(true);
     const skillMd = fs.readFileSync(path.join(result.skillDir, 'SKILL.md'), 'utf8');
-    expect(skillMd).toContain('generator: skillsdb');
+    expect(skillMd).toContain('generator: skillset-db');
     expect(skillMd).toContain('Never use var; always declare explicit types.');
 
     // indexed, active, exact metadata preserved, matchable
@@ -56,7 +56,7 @@ describe('rememberRule', () => {
       ruleText: 'Always use the AppButton widget for buttons.',
       tech: 'flutter',
     });
-    expect(result.skillDir).toBe(path.join(tmpProject, '.claude', 'skills', 'skillsdb-memory-flutter'));
+    expect(result.skillDir).toBe(path.join(tmpProject, '.claude', 'skills', 'skillset-db-memory-flutter'));
     const skill = db.prepare('SELECT scope FROM skills').get() as { scope: string };
     expect(skill.scope).toBe('project');
   });
@@ -97,7 +97,7 @@ describe('forgetRule', () => {
     ).id;
     expect(await forgetRule(db, id)).toBe(true);
     const skillMd = fs.readFileSync(
-      path.join(tmpHome, '.claude', 'skills', 'skillsdb-memory-general', 'SKILL.md'),
+      path.join(tmpHome, '.claude', 'skills', 'skillset-db-memory-general', 'SKILL.md'),
       'utf8',
     );
     expect(skillMd).toContain('Rule one');

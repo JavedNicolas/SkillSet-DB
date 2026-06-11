@@ -9,7 +9,7 @@ import { SCHEMA_SQL, SCHEMA_VERSION } from '../src/db/schema.js';
 let tmpDir: string;
 
 beforeEach(() => {
-  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillsdb-migration-'));
+  tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillset-db-migration-'));
 });
 
 afterEach(() => {

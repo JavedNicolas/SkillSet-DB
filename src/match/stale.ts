@@ -55,7 +55,7 @@ function stackFilesStale(db: Db): boolean {
 }
 
 /**
- * Kick off `skillsdb sync` detached so the NEXT prompt sees fresh rules,
+ * Kick off `skillset-db sync` detached so the NEXT prompt sees fresh rules,
  * without ever blocking this one. A lockfile keeps concurrent prompts from
  * stampeding.
  */
