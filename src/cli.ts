@@ -86,6 +86,28 @@ program
   });
 
 program
+  .command('remember <rule>')
+  .description('Save a conversation rule as a generated memory skill (global by default)')
+  .option('--project', 'Save into this project instead of globally')
+  .option('--tech <tech>', 'Framework/language bucket (flutter, react, typescript...); default: detected stack')
+  .option('--category <slug>', 'Rule category')
+  .option('--priority <1-4>', 'Priority: 1 critical .. 4 info (default 2)')
+  .option('--triggers <words>', 'Comma/space separated trigger keywords')
+  .option('--detail <text>', 'Longer explanation stored with the rule')
+  .action(async (rule, opts) => {
+    const { rememberCommand } = await import('./commands/remember.js');
+    await rememberCommand(process.cwd(), rule, opts);
+  });
+
+program
+  .command('forget <ruleId>')
+  .description('Remove a remembered rule by its R-number')
+  .action(async (ruleId) => {
+    const { forgetCommand } = await import('./commands/remember.js');
+    await forgetCommand(process.cwd(), ruleId);
+  });
+
+program
   .command('add')
   .description('Interactively activate skills that are currently inactive for this project')
   .action(async () => {
