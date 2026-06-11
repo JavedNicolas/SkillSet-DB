@@ -109,11 +109,20 @@ program
   });
 
 program
-  .command('forget <ruleId>')
-  .description('Remove a remembered rule by its R-number')
+  .command('forget [ruleId]')
+  .description('Remove a remembered rule by its R-number (no argument: list remembered rules)')
   .action(async (ruleId) => {
     const { forgetCommand } = await import('./commands/remember.js');
     await forgetCommand(process.cwd(), ruleId);
+  });
+
+program
+  .command('clear')
+  .description('Drop the project rules database (config and hooks kept); rebuild with skillsdb index')
+  .option('--cache', 'Also clear the global extraction cache in ~/.skillsdb')
+  .action(async (opts) => {
+    const { clearCommand } = await import('./commands/clear.js');
+    clearCommand(process.cwd(), opts);
   });
 
 program

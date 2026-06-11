@@ -144,7 +144,9 @@ Storage is file-first: each rule becomes a reference file inside a **generated s
 
 This layering is the point: the rule is simultaneously (a) indexed in the database and injected by the hooks like any other rule, (b) a real per-framework skill that Claude's native skill loading can use even without SkillsDB, and (c) subject to stack activation — the flutter memory skill deactivates in your JS backend. Other projects pick the rules up automatically through their own sync.
 
-`skillsdb forget <R-number>` removes a remembered rule (file, index, and SKILL.md mirror); the matching MCP tool `skillsdb_forget` does the same from conversation.
+`skillsdb forget <R-number>` removes a remembered rule (file, index, and SKILL.md mirror); the matching MCP tool `skillsdb_forget` does the same from conversation. The R-number is shown everywhere a rule appears — injected blocks, `skillsdb list --rules`, `skillsdb match` — and running `skillsdb forget` with no argument lists every remembered rule with its number. Note that R-numbers are reassigned when a skill is re-extracted, so take them from current output.
+
+Because the files are the source of truth, `skillsdb clear` followed by `skillsdb index` rebuilds the database with every remembered rule intact.
 
 **Bootstrap from Claude's memory.** Rules you taught Claude in past sessions live in its per-project memory (`~/.claude/projects/<project>/memory/`). `skillsdb init` imports them automatically: a headless claude call reads the memory notes, keeps only durable instructions (biography and one-off context are dropped), and stores them as project-scoped remembered rules with the right tech bucket. Imported notes are tracked by content hash, so re-running never duplicates — and new memories accumulated later can be pulled in with `skillsdb import-memory`. Without the claude CLI, a deterministic fallback converts each note's description line into one rule.
 
@@ -184,6 +186,7 @@ skillsdb edit                 # interactive toggle list of all skills
 skillsdb enable <skill>       # force a skill active for this project
 skillsdb disable <skill>      # force a skill inactive for this project
 skillsdb serve --mcp          # start the MCP server (stdio)
+skillsdb clear                # drop the rules database (--cache also wipes ~/.skillsdb)
 skillsdb uninstall            # remove hook + MCP entries (--purge deletes .skillsdb/)
 ```
 

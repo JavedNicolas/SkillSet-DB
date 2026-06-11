@@ -71,11 +71,39 @@ export async function importMemoryCommand(cwd: string, options: ImportMemoryOpti
   }
 }
 
-export async function forgetCommand(cwd: string, id: string): Promise<void> {
+/** `skillsdb forget` with no id: show what can be forgotten, with R-numbers. */
+function listMemoryRules(projectRoot: string): void {
+  const db = openProjectDb(projectDbPath(projectRoot), { readonly: true });
+  try {
+    const rows = db
+      .prepare(
+        `SELECT r.id, r.priority, r.rule_text, s.name AS skill, s.scope
+         FROM rules r JOIN skills s ON s.id = r.skill_id
+         WHERE s.name LIKE 'skillsdb-memory-%' ORDER BY s.name, r.id`,
+      )
+      .all() as { id: number; priority: number; rule_text: string; skill: string; scope: string }[];
+    if (rows.length === 0) {
+      console.log('No remembered rules yet — save one with skillsdb remember "<rule>".');
+      return;
+    }
+    console.log('Remembered rules (forget one with skillsdb forget <R-number>):');
+    for (const row of rows) {
+      console.log(`  R${row.id} P${row.priority} [${row.skill}/${row.scope}] ${row.rule_text}`);
+    }
+  } finally {
+    db.close();
+  }
+}
+
+export async function forgetCommand(cwd: string, id: string | undefined): Promise<void> {
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) {
     console.log('No SkillsDB index found. Run `skillsdb init` in your project.');
     process.exitCode = 1;
+    return;
+  }
+  if (!id) {
+    listMemoryRules(projectRoot);
     return;
   }
   const ruleId = Number(id.replace(/^[rR]/, ''));
