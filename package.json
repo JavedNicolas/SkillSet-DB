@@ -1,5 +1,5 @@
 {
-  "name": "skillsdb",
+  "name": "skills-db",
   "version": "0.1.0",
   "description": "Skill-rules database for Claude Code: extracts atomic rules from skills and auto-injects the relevant ones into every prompt",
   "type": "module",
@@ -19,7 +19,8 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "prepublishOnly": "npm run typecheck && npm run build"
+    "prepare": "tsup",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "keywords": [
     "claude",

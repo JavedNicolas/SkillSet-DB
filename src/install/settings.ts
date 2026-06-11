@@ -6,7 +6,9 @@ interface HookEntry {
   hooks: { type: string; command: string; timeout?: number }[];
 }
 
-const MARKER = 'skillsdb';
+// matches both the dev path (.../SkillsDB/dist/hook.js) and the published
+// package path (.../node_modules/skills-db/dist/hook.js)
+const MARKER_RE = /skills-?db/i;
 
 export function settingsPath(projectRoot: string): string {
   return path.join(projectRoot, '.claude', 'settings.json');
@@ -99,8 +101,7 @@ function hasSkillsdbHook(entries: HookEntry[]): boolean {
 
 function isSkillsdbEntry(entry: HookEntry): boolean {
   return (
-    Array.isArray(entry?.hooks) &&
-    entry.hooks.some((h) => typeof h?.command === 'string' && h.command.toLowerCase().includes(MARKER))
+    Array.isArray(entry?.hooks) && entry.hooks.some((h) => typeof h?.command === 'string' && MARKER_RE.test(h.command))
   );
 }
 

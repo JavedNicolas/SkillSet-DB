@@ -18,8 +18,8 @@ SkillsDB removes the "model decides to look" step. It parses every skill availab
 ## Get Started
 
 ```
-# 1. Install
-npm install -g skillsdb
+# 1. Install (package name skills-db, command skillsdb)
+npm install -g skills-db
 
 # 2. Initialize in your project
 cd your-project
