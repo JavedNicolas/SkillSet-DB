@@ -7,12 +7,12 @@
   "author": "Nicolas Javed",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/JavedNicolas/SkillDB.git"
+    "url": "git+https://github.com/JavedNicolas/SkillSet-DB.git"
   },
   "bugs": {
-    "url": "https://github.com/JavedNicolas/SkillDB/issues"
+    "url": "https://github.com/JavedNicolas/SkillSet-DB/issues"
   },
-  "homepage": "https://github.com/JavedNicolas/SkillDB#readme",
+  "homepage": "https://github.com/JavedNicolas/SkillSet-DB#readme",
   "engines": {
     "node": ">=20"
   },

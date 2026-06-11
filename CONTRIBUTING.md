@@ -13,7 +13,7 @@ development loop, and the conventions the project follows.
 ## Setup
 
 ```bash
-git clone https://github.com/JavedNicolas/SkillDB.git
+git clone https://github.com/JavedNicolas/SkillSet-DB.git
 cd SkillsDB
 npm install
 ```
