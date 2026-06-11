@@ -4,6 +4,15 @@
   "description": "Skill-rules database for Claude Code: extracts atomic rules from skills and auto-injects the relevant ones into every prompt",
   "type": "module",
   "license": "MIT",
+  "author": "Nicolas Javed",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JavedNicolas/SkillsDB.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JavedNicolas/SkillsDB/issues"
+  },
+  "homepage": "https://github.com/JavedNicolas/SkillsDB#readme",
   "engines": {
     "node": ">=20"
   },
