@@ -7,13 +7,16 @@ import { projectDbDir, projectDbPath } from '../paths.js';
 import { hookCommand, installMcp } from '../install/mcp.js';
 import { installHook } from '../install/settings.js';
 import { makeLlmExtractor } from '../extract/claudeCli.js';
-import { makeLlmActivator } from '../detect/activation.js';
+import { applyActivation, makeLlmActivator } from '../detect/activation.js';
+import { detectStack } from '../detect/stack.js';
+import { setMeta } from '../db/queries.js';
 import { loadConfig } from '../config.js';
 
 export interface InitOptions {
   hook?: boolean; // --no-hook => false
   mcp?: boolean; // --no-mcp => false
   llm?: boolean; // --no-llm => false
+  interactive?: boolean; // --no-interactive => false
 }
 
 export async function initCommand(cwd: string, options: InitOptions): Promise<void> {
@@ -59,6 +62,8 @@ export async function initCommand(cwd: string, options: InitOptions): Promise<vo
       llmActivate: (noLlm ? null : makeLlmActivator(config)) ?? undefined,
       onProgress: (m) => console.log(`  ${m}`),
     });
+    await maybeSelectSkills(db, projectRoot, config, options);
+
     console.log(
       `\nSkillsDB ready: ${summary.scanned} skills, ${summary.rules} rules.\n` +
         'Rules matching each prompt are now injected automatically. Try: skillsdb match "your task"',
@@ -66,4 +71,53 @@ export async function initCommand(cwd: string, options: InitOptions): Promise<vo
   } finally {
     db.close();
   }
+}
+
+/**
+ * Empty project (no detectable stack): let the user pick which skills should
+ * be active. The selection is a soft baseline — once real stack evidence
+ * appears, auto-activation takes over on the next sync.
+ */
+async function maybeSelectSkills(
+  db: ReturnType<typeof openProjectDb>,
+  projectRoot: string,
+  config: ReturnType<typeof loadConfig>,
+  options: InitOptions,
+): Promise<void> {
+  if (options.interactive === false || !process.stdin.isTTY || !process.stdout.isTTY) return;
+  const detection = detectStack(projectRoot);
+  if (!detection.isEmpty) return;
+
+  const skills = db
+    .prepare(
+      `SELECT name, description FROM skills WHERE scope != 'project' AND shadowed_by IS NULL ORDER BY name`,
+    )
+    .all() as { name: string; description: string | null }[];
+  if (skills.length === 0) return;
+
+  console.log('');
+  let chosen: string[];
+  try {
+    const { default: checkbox } = await import('@inquirer/checkbox');
+    chosen = await checkbox({
+      message: 'No tech stack detected yet — choose which skills should be active in this project:',
+      choices: skills.map((s) => ({
+        name: `${s.name} — ${(s.description ?? '').slice(0, 70)}`,
+        value: s.name,
+        checked: true,
+      })),
+      pageSize: 15,
+    });
+  } catch {
+    // Ctrl-C or prompt failure: keep everything active
+    console.log('Selection skipped — all skills stay active.');
+    return;
+  }
+
+  setMeta(db, 'init_selection', JSON.stringify(chosen));
+  await applyActivation(db, projectRoot, config, { noLlm: true });
+  console.log(
+    `${chosen.length}/${skills.length} skills active. This refines automatically once the project gains a tech stack; ` +
+      'override anytime with skillsdb enable/disable.',
+  );
 }

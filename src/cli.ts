@@ -19,6 +19,7 @@ program
   .option('--no-hook', 'Do not register the UserPromptSubmit hook')
   .option('--no-mcp', 'Do not register the MCP server')
   .option('--no-llm', 'Skip LLM extraction (heuristic only)')
+  .option('--no-interactive', 'Never prompt; all skills stay active when no stack is detected')
   .action(async (opts) => {
     await initCommand(process.cwd(), opts);
   });
@@ -82,6 +83,22 @@ program
   .action(async (opts) => {
     const { watchCommand } = await import('./commands/watch.js');
     await watchCommand(process.cwd(), opts);
+  });
+
+program
+  .command('enable <skill>')
+  .description('Force a skill active for this project (hard override)')
+  .action(async (skill) => {
+    const { setSkillOverride } = await import('./commands/activate.js');
+    await setSkillOverride(process.cwd(), skill, true);
+  });
+
+program
+  .command('disable <skill>')
+  .description('Force a skill inactive for this project (hard override)')
+  .action(async (skill) => {
+    const { setSkillOverride } = await import('./commands/activate.js');
+    await setSkillOverride(process.cwd(), skill, false);
   });
 
 program
