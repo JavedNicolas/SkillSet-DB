@@ -7,3 +7,5 @@ dist/
 *.db-shm
 *.tgz
 .DS_Store
+
+.claude/

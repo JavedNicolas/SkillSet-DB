@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "skillsdb": {
+      "type": "stdio",
+      "command": "/Users/nicolas/.nvm/versions/node/v20.13.1/bin/node",
+      "args": [
+        "/Users/nicolas/Desktop/Projects/SkillsDB/dist/cli.js",
+        "serve",
+        "--mcp"
+      ]
+    }
+  }
+}
