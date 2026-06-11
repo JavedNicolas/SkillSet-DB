@@ -32,6 +32,13 @@ export async function extractRules(
     else llmReferences.push(ref);
   }
 
+  // SkillsDB-generated memory skills: references carry the exact metadata the
+  // user (or Claude) provided; the SKILL.md body is a human-readable mirror —
+  // extracting it too would duplicate every rule.
+  if (isGeneratedMemorySkill(skill)) {
+    return { rules: referenceRules, method: 'llm' };
+  }
+
   if (!options.noLlm && options.llmExtract) {
     const llmRules = await options.llmExtract(skill);
     if (llmRules) {
@@ -40,4 +47,13 @@ export async function extractRules(
   }
 
   return { rules: [...referenceRules, ...heuristicExtract(skill)], method: 'heuristic' };
+}
+
+function isGeneratedMemorySkill(skill: ScannedSkill): boolean {
+  const metadata = skill.frontmatter?.metadata;
+  return (
+    typeof metadata === 'object' &&
+    metadata !== null &&
+    (metadata as Record<string, unknown>).generator === 'skillsdb'
+  );
 }

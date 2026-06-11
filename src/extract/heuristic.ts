@@ -30,11 +30,16 @@ export function ruleFromReference(ref: ScannedReference, fallbackCategory: strin
     .map((t) => t.trim().toLowerCase())
     .filter(Boolean);
   const impactDescription = typeof fm.impactDescription === 'string' ? fm.impactDescription : '';
+  // explicit category frontmatter (used by generated memory skills) wins
+  const category =
+    typeof fm.category === 'string' && fm.category.trim()
+      ? fm.category.trim()
+      : bestCategory(`${title} ${tags.join(' ')} ${ref.body.slice(0, 600)}`, fallbackCategory);
 
   return {
     title,
     ruleText: truncate(impactDescription ? `${title} — ${impactDescription}` : title, MAX_RULE_TEXT),
-    category: bestCategory(`${title} ${tags.join(' ')} ${ref.body.slice(0, 600)}`, fallbackCategory),
+    category,
     priority,
     triggers: uniq([...tags, ...keywords(title)]),
     detail: ref.body.trim().slice(0, 2000) || null,
