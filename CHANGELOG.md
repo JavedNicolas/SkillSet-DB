@@ -30,5 +30,5 @@ Initial release.
   `forget`, `import-memory`, `add`, `edit`, `enable`, `disable`, `serve`, `clear`,
   `uninstall`.
 
-[Unreleased]: https://github.com/JavedNicolas/SkillsDB/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/JavedNicolas/SkillsDB/releases/tag/v0.1.0
+[Unreleased]: https://github.com/JavedNicolas/SkillDB/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/JavedNicolas/SkillDB/releases/tag/v0.1.0
