@@ -1,5 +1,5 @@
 {
-  "name": "skills-db",
+  "name": "skill_db",
   "version": "0.1.0",
   "description": "Skill-rules database for Claude Code: extracts atomic rules from skills and auto-injects the relevant ones into every prompt",
   "type": "module",

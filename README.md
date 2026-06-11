@@ -6,7 +6,7 @@
 
 **~50 ms per injection · 0 API calls in the hot path · extraction cached per content hash**
 
-[![npm version](https://img.shields.io/npm/v/skills-db.svg)](https://www.npmjs.com/package/skills-db)
+[![npm version](https://img.shields.io/npm/v/skill_db.svg)](https://www.npmjs.com/package/skill_db)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A5%2020-brightgreen.svg)](https://nodejs.org/)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-hooks_%2B_MCP-blueviolet.svg)](https://docs.claude.com/en/docs/claude-code)
@@ -35,8 +35,8 @@ extraction and stack-relevance decisions; without it, SkillsDB falls back to heu
 extraction and a deterministic activation rule (everything still works, lower fidelity).
 
 ```
-# 1. Install (package name skills-db, command skillsdb)
-npm install -g skills-db
+# 1. Install (package name skill_db, command skillsdb)
+npm install -g skill_db
 
 # 2. Initialize in your project
 cd your-project
