@@ -53,6 +53,25 @@ All skill scopes are merged, in precedence order:
 
 When the same skill name exists at several scopes, the higher scope wins; shadowed copies stay indexed but are excluded from matching.
 
+## Stack-Aware Skill Activation
+
+Global skills accumulate across projects and stacks — Flutter skills, Node skills, a BLoC skill for one app and a Riverpod skill for another. Indexing everything everywhere would let irrelevant rules compete for injection. SkillsDB activates skills per project:
+
+1. **Stack detection** (deterministic, offline): known manifests are parsed for dependency names — `package.json`, `pubspec.yaml`, `go.mod`, `Cargo.toml`, `requirements.txt`, `pyproject.toml`, `composer.json`, `Gemfile`, `*.csproj`, `supabase/config.toml` — at the project root and one directory level down (monorepos produce a union profile). A capped file-extension census adds language evidence.
+2. **Relevance decisions**: one headless claude call receives the profile and the skill list, and returns active/inactive per skill — this is what distinguishes a BLoC project from a Riverpod project when both are Flutter. The result is cached and re-computed only when the dependency set or the skill set changes. Without the claude CLI, a conservative deterministic fallback deactivates only skills that demonstrably name a technology the stack does not use (with exclusive-group handling for competing libraries).
+3. **Lifecycle**: an inactive skill stays indexed but is excluded from all matching. When you add a dependency mid-project, the next hook fire notices the manifest change, re-detects the stack in the background, and newly relevant skills activate before your next prompt. Project-scope skills are always active.
+
+On an **empty project** (no manifests, no source files), `skillsdb init` shows an interactive checklist to pick the active skills. The selection is a soft baseline: it is replaced by automatic detection as soon as the project gains a stack. `--no-interactive` (or a non-TTY) skips the prompt and keeps everything active.
+
+Manual control always wins:
+
+```
+skillsdb disable flutter-riverpod    # hard override, survives re-detection
+skillsdb enable flutter-riverpod
+skillsdb list                        # shows (inactive: <reason>) per skill
+skillsdb status                      # shows the detected stack
+```
+
 ## Extraction
 
 Skill bodies are freeform markdown, so turning them into atomic rules is the hard part. SkillsDB uses three extractors, in order of preference:
@@ -129,8 +148,10 @@ skillsdb match "<task>"       # preview the rules a task description triggers
 skillsdb index                # full rescan (--force ignores the extraction cache)
 skillsdb sync                 # incremental update for changed skill files
 skillsdb watch                # watch skill directories, sync on change
-skillsdb status               # index health, counts per scope, staleness
-skillsdb list                 # skills; --rules, --categories, --category <slug>
+skillsdb status               # index health, detected stack, counts, staleness
+skillsdb list                 # skills with activation state; --rules, --categories
+skillsdb enable <skill>       # force a skill active for this project
+skillsdb disable <skill>      # force a skill inactive for this project
 skillsdb serve --mcp          # start the MCP server (stdio)
 skillsdb uninstall            # remove hook + MCP entries (--purge deletes .skillsdb/)
 ```
@@ -154,11 +175,14 @@ skillsdb uninstall            # remove hook + MCP entries (--purge deletes .skil
   "tokenBudget": 800,
   "maxRules": 15,
   "extractionModel": "claude-opus-4-8",
-  "noLlm": false
+  "noLlm": false,
+  "enabledSkills": [],
+  "disabledSkills": []
 }
 ```
 
 - `tokenBudget` / `maxRules` — caps for each injected block.
+- `enabledSkills` / `disabledSkills` — hard activation overrides, managed by `skillsdb enable|disable`.
 - `extractionModel` — model used by the headless extraction calls. Switch to a smaller model to cut extraction cost; quality of trigger keywords drives matching quality, so prefer a capable model for skills you rely on.
 - `noLlm` — permanent heuristic mode for this project.
 
