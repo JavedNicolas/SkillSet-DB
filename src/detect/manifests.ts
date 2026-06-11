@@ -122,7 +122,10 @@ export function parsePubspec(content: string): Evidence {
     }
   }
   const ev = depsToEvidence('dart', deps);
-  if (deps.includes('flutter')) ev.frameworks = [...new Set(['flutter', ...ev.frameworks])];
+  // any flutter_* package implies the flutter framework, even without the sdk dep
+  if (deps.includes('flutter') || deps.some((d) => d.startsWith('flutter_'))) {
+    ev.frameworks = [...new Set(['flutter', ...ev.frameworks])];
+  }
   return ev;
 }
 

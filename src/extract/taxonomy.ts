@@ -23,7 +23,7 @@ export const SEED_CATEGORIES: SeedCategory[] = [
   {
     slug: 'ui-design',
     label: 'UI & design',
-    keywords: ['ui', 'ux', 'widget', 'component', 'screen', 'layout', 'theme', 'design', 'css', 'style', 'responsive', 'accessibility', 'animation', 'page', 'view'],
+    keywords: ['ui', 'ux', 'widget', 'component', 'screen', 'layout', 'theme', 'design', 'css', 'style', 'responsive', 'accessibility', 'animation', 'page', 'view', 'color', 'colors', 'font', 'icon'],
   },
   {
     slug: 'state-management',

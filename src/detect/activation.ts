@@ -9,6 +9,10 @@ import {
 } from '../db/queries.js';
 import type { SkillsdbConfig } from '../config.js';
 import { callClaudeJson, findClaudeBin } from '../extract/claudeCli.js';
+import { homeDir, skillRoots } from '../paths.js';
+import type { StackFileSnapshot } from '../db/queries.js';
+import fs from 'node:fs';
+import path from 'node:path';
 import { detectStack, type StackProfile } from './stack.js';
 import { ACTIVATION_RETRY_SUFFIX, ACTIVATION_SYSTEM_PROMPT, activationUserPrompt } from './prompts.js';
 import { LlmActivationSchema } from './schema.js';
@@ -185,7 +189,10 @@ export async function applyActivation(
   const detection = detectStack(projectRoot);
 
   const writeSnapshot = db.transaction(() => {
-    replaceStackFiles(db, detection.candidates);
+    // manifests + skill ROOT directories: a directory's mtime changes when a
+    // skill is added or removed, so new skills (e.g. a memory skill created
+    // from another project) are picked up by the hook's staleness probe
+    replaceStackFiles(db, [...detection.candidates, ...skillRootSnapshots(projectRoot)]);
     setMeta(db, 'stack_profile', JSON.stringify(detection.profile));
     setMeta(db, 'stack_hash', detection.hash);
   });
@@ -319,4 +326,22 @@ function readInitSelection(db: Db): Set<string> | null {
 
 function toMap(decisions: ActivationDecision[]): Map<string, ActivationDecision> {
   return new Map(decisions.map((d) => [d.skill, d]));
+}
+
+function skillRootSnapshots(projectRoot: string): StackFileSnapshot[] {
+  const home = homeDir();
+  const dirs = new Set<string>([
+    path.join(projectRoot, '.claude', 'skills'),
+    path.join(home, '.claude', 'skills'),
+    path.join(home, '.agents', 'skills'),
+    ...skillRoots(projectRoot).map((r) => r.dir),
+  ]);
+  return [...dirs].map((dir) => {
+    try {
+      const st = fs.statSync(dir);
+      return { path: dir, present: true, mtimeMs: Math.round(st.mtimeMs), size: st.size };
+    } catch {
+      return { path: dir, present: false, mtimeMs: null, size: null };
+    }
+  });
 }
