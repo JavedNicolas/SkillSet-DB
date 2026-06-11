@@ -31,7 +31,9 @@ export function listCommand(cwd: string, options: ListOptions): void {
     }
 
     if (options.rules || options.category) {
-      const where = options.category ? 'WHERE r.category = ? AND s.shadowed_by IS NULL' : 'WHERE s.shadowed_by IS NULL';
+      const where = options.category
+        ? 'WHERE r.category = ? AND s.shadowed_by IS NULL AND s.active = 1'
+        : 'WHERE s.shadowed_by IS NULL AND s.active = 1';
       const args = options.category ? [options.category] : [];
       const rows = db
         .prepare(
@@ -54,15 +56,24 @@ export function listCommand(cwd: string, options: ListOptions): void {
 
     const rows = db
       .prepare(
-        `SELECT s.name, s.scope, s.extraction_status, s.shadowed_by, COUNT(r.id) AS n
+        `SELECT s.name, s.scope, s.extraction_status, s.shadowed_by, s.active, s.inactive_reason, COUNT(r.id) AS n
          FROM skills s LEFT JOIN rules r ON r.skill_id = s.id
          GROUP BY s.id ORDER BY s.scope, s.name`,
       )
-      .all() as { name: string; scope: string; extraction_status: string; shadowed_by: number | null; n: number }[];
+      .all() as {
+      name: string;
+      scope: string;
+      extraction_status: string;
+      shadowed_by: number | null;
+      active: number;
+      inactive_reason: string | null;
+      n: number;
+    }[];
     for (const row of rows) {
       const shadow = row.shadowed_by ? ' (shadowed)' : '';
+      const inactive = !row.active ? ` (inactive: ${row.inactive_reason ?? 'deactivated'})` : '';
       console.log(
-        `${row.scope.padEnd(8)} ${String(row.n).padStart(4)} rules  [${row.extraction_status}] ${row.name}${shadow}`,
+        `${row.scope.padEnd(8)} ${String(row.n).padStart(4)} rules  [${row.extraction_status}] ${row.name}${shadow}${inactive}`,
       );
     }
     console.log(`\n${rows.length} skills`);

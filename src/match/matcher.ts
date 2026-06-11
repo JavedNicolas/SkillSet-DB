@@ -29,6 +29,16 @@ const STOPWORDS = new Set([
 
 const PRIORITY_WEIGHT: Record<number, number> = { 1: 1.6, 2: 1.2, 3: 1.0, 4: 0.7 };
 
+/**
+ * SQL fragment excluding deactivated skills. Version-gated: the hook opens
+ * the DB readonly and may meet a pre-v2 schema with no `active` column —
+ * migration happens on the next write-path sync.
+ */
+function activeFilter(db: Db): string {
+  const version = db.pragma('user_version', { simple: true }) as number;
+  return version >= 2 ? 'AND s.active = 1' : '';
+}
+
 /** Match a free-text task description against the rules database. */
 export function matchRules(db: Db, prompt: string, options: MatchOptions = {}): MatchedRule[] {
   const tokenBudget = options.tokenBudget ?? 800;
@@ -63,7 +73,7 @@ export function rulesByIds(db: Db, ids: number[], limit: number): MatchedRule[] 
       `SELECT r.id, r.category, r.priority, r.title, r.rule_text AS ruleText,
               s.name AS skill, -1.0 AS score
        FROM rules r JOIN skills s ON s.id = r.skill_id
-       WHERE r.id IN (${placeholders}) AND s.shadowed_by IS NULL
+       WHERE r.id IN (${placeholders}) AND s.shadowed_by IS NULL ${activeFilter(db)}
        ORDER BY r.priority, r.id LIMIT ?`,
     )
     .all(...ids, limit) as MatchedRule[];
@@ -89,7 +99,7 @@ function ftsQuery(db: Db, tokens: string[], category: string | undefined, limit:
          FROM rules_fts
          JOIN rules r ON r.id = rules_fts.rowid
          JOIN skills s ON s.id = r.skill_id
-         WHERE rules_fts MATCH ? AND s.shadowed_by IS NULL ${categoryFilter}
+         WHERE rules_fts MATCH ? AND s.shadowed_by IS NULL ${activeFilter(db)} ${categoryFilter}
          ORDER BY score LIMIT ?`,
       )
       .all(...args) as MatchedRule[];
@@ -123,7 +133,7 @@ function categoryFallback(db: Db, tokens: string[], category: string | undefined
       `SELECT r.id, r.category, r.priority, r.title, r.rule_text AS ruleText,
               s.name AS skill, -1.0 AS score
        FROM rules r JOIN skills s ON s.id = r.skill_id
-       WHERE r.category IN (${placeholders}) AND s.shadowed_by IS NULL AND r.priority <= 2
+       WHERE r.category IN (${placeholders}) AND s.shadowed_by IS NULL ${activeFilter(db)} AND r.priority <= 2
        ORDER BY r.priority, r.id LIMIT ?`,
     )
     .all(...slugs, limit) as MatchedRule[];

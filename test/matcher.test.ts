@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { openProjectDb, type Db } from '../src/db/database.js';
-import { matchRules, promptTokens } from '../src/match/matcher.js';
+import { matchRules, promptTokens, rulesByIds } from '../src/match/matcher.js';
 import { formatRulesBlock } from '../src/match/format.js';
 
 let tmpDir: string;
@@ -74,6 +74,14 @@ describe('matchRules', () => {
 
   it('returns empty for empty prompt without throwing', () => {
     expect(matchRules(db, '')).toEqual([]);
+  });
+
+  it('excludes inactive skills from FTS, fallback, and id lookup', () => {
+    db.prepare(`UPDATE skills SET active = 0, inactive_reason = 'fallback: foreign stack'`).run();
+    expect(matchRules(db, 'create a profile bloc with events')).toEqual([]);
+    expect(matchRules(db, 'something vague entirely')).toEqual([]); // category fallback path
+    const ids = (db.prepare('SELECT id FROM rules').all() as { id: number }[]).map((r) => r.id);
+    expect(rulesByIds(db, ids, 10)).toEqual([]);
   });
 });
 

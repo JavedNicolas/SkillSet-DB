@@ -66,7 +66,7 @@ export async function serveMcp(cwd: string): Promise<void> {
         .prepare(
           `SELECT r.id, r.priority, r.rule_text, s.name AS skill
            FROM rules r JOIN skills s ON s.id = r.skill_id
-           WHERE r.category = ? AND s.shadowed_by IS NULL
+           WHERE r.category = ? AND s.shadowed_by IS NULL AND s.active = 1
            ORDER BY r.priority, r.id LIMIT ?`,
         )
         .all(category, limit ?? 50) as { id: number; priority: number; rule_text: string; skill: string }[];
@@ -84,12 +84,13 @@ export async function serveMcp(cwd: string): Promise<void> {
     async ({ id }) => {
       const row = getDb()
         .prepare(
-          `SELECT r.*, s.name AS skill, s.scope FROM rules r JOIN skills s ON s.id = r.skill_id WHERE r.id = ?`,
+          `SELECT r.*, s.name AS skill, s.scope, s.active FROM rules r JOIN skills s ON s.id = r.skill_id WHERE r.id = ?`,
         )
         .get(id) as Record<string, unknown> | undefined;
       if (!row) return text(`No rule R${id}.`);
       const lines = [
-        `R${row.id} [${row.skill} / ${row.scope}] priority P${row.priority} category ${row.category}`,
+        `R${row.id} [${row.skill} / ${row.scope}] priority P${row.priority} category ${row.category}` +
+          (row.active ? '' : ' (skill inactive for this project)'),
         `Title: ${row.title}`,
         `Rule: ${row.rule_text}`,
         row.detail ? `Detail:\n${row.detail}` : null,
@@ -121,7 +122,7 @@ export async function serveMcp(cwd: string): Promise<void> {
       const counts = statusCounts(getDb());
       const skills = counts.skills.map((s) => `${s.scope}: ${s.n} [${s.status}]`).join(', ');
       return text(
-        `Project: ${projectRoot}\nRules: ${counts.rules} in ${counts.categories} categories\nSkills: ${skills}\nShadowed: ${counts.shadowed}`,
+        `Project: ${projectRoot}\nRules: ${counts.rules} in ${counts.categories} categories\nSkills: ${skills}\nShadowed: ${counts.shadowed}\nInactive for this project: ${counts.inactive}`,
       );
     },
   );

@@ -139,11 +139,13 @@ function handleSubagentStart(db: Database.Database, projectRoot: string, session
 }
 
 function statusForBlock(db: Database.Database): { rules: number; categories: number; skills: number } {
+  const version = db.pragma('user_version', { simple: true }) as number;
+  const active = version >= 2 ? 'AND s.active = 1' : '';
   const row = db
     .prepare(
       `SELECT COUNT(r.id) AS rules, COUNT(DISTINCT r.category) AS categories,
               COUNT(DISTINCT r.skill_id) AS skills
-       FROM rules r JOIN skills s ON s.id = r.skill_id WHERE s.shadowed_by IS NULL`,
+       FROM rules r JOIN skills s ON s.id = r.skill_id WHERE s.shadowed_by IS NULL ${active}`,
     )
     .get() as { rules: number; categories: number; skills: number };
   return row;
@@ -151,7 +153,9 @@ function statusForBlock(db: Database.Database): { rules: number; categories: num
 
 function staleProbe(db: Database.Database, projectRoot: string): boolean {
   try {
-    const stale = isIndexStale(db);
+    // pre-v2 DB under a v2 binary: a write-path sync migrates it
+    const version = db.pragma('user_version', { simple: true }) as number;
+    const stale = version < 2 || isIndexStale(db);
     if (stale) triggerBackgroundSync(projectRoot);
     return stale;
   } catch {
