@@ -8,10 +8,13 @@ import { projectDbDir } from '../paths.js';
 const LOCK_TTL_MS = 2 * 60 * 1000;
 
 /**
- * Cheap staleness probe for the hook path: stat every indexed file and
- * compare mtime/size. ~30-60 stats, well under a millisecond each.
+ * Cheap staleness probe for the hook path: stat the watched stack manifests
+ * and every indexed skill file, comparing mtime/size. ~50-90 stats, a few
+ * microseconds each. Stack files first — they are fewer and change more
+ * often mid-project (new dependency, new manifest appearing).
  */
 export function isIndexStale(db: Db): boolean {
+  if (stackFilesStale(db)) return true;
   const rows = db.prepare('SELECT path, mtime_ms, size FROM files').all() as {
     path: string;
     mtime_ms: number;
@@ -23,6 +26,29 @@ export function isIndexStale(db: Db): boolean {
       if (Math.round(st.mtimeMs) !== row.mtime_ms || st.size !== row.size) return true;
     } catch {
       return true; // deleted
+    }
+  }
+  return false;
+}
+
+/**
+ * Stack manifest snapshot check. Absent candidates (present=0) are recorded
+ * too, so a package.json appearing in a previously empty project is caught.
+ */
+function stackFilesStale(db: Db): boolean {
+  let rows: { path: string; present: number; mtime_ms: number | null; size: number | null }[];
+  try {
+    rows = db.prepare('SELECT path, present, mtime_ms, size FROM stack_files').all() as typeof rows;
+  } catch {
+    return false; // pre-v2 schema: no table yet (the hook separately triggers a migrating sync)
+  }
+  for (const row of rows) {
+    try {
+      const st = fs.statSync(row.path);
+      if (!row.present) return true; // manifest appeared
+      if (Math.round(st.mtimeMs) !== row.mtime_ms || st.size !== row.size) return true;
+    } catch {
+      if (row.present) return true; // manifest deleted
     }
   }
   return false;
