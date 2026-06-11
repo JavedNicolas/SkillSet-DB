@@ -126,6 +126,26 @@ Full text: mcp__skillsdb__skillsdb_rule_detail with the R-number.
 </skillsdb-rules>
 ```
 
+## Remembered Rules (conversation memory)
+
+Rules you state in conversation ("never use `var` here", "always use our AppButton widget") usually live nowhere — they last one session. SkillsDB captures them through two failsafe paths:
+
+1. **In conversation**: the `skillsdb_remember` MCP tool. The server instructions tell Claude to save lasting rules/corrections the moment you state them, with Claude supplying the category, priority, and trigger keywords itself — no extra model call. Always saved at global scope.
+2. **From the terminal** (failsafe when the model did not catch it): `skillsdb remember "<rule>"`, with `--project` to scope it to the current project instead of globally, plus `--tech`, `--category`, `--priority`, `--triggers`, `--detail`.
+
+Storage is file-first: each rule becomes a reference file inside a **generated skill** named `skillsdb-memory-<tech>` (flutter, react, typescript, ... — auto-detected from the project stack, or `general`), written to `~/.claude/skills/` (global) or `<project>/.claude/skills/` (project):
+
+```
+~/.claude/skills/skillsdb-memory-flutter/
+  SKILL.md                      # human-readable mirror; loadable by Claude natively
+  references/
+    never-hardcode-hex-colors.md   # frontmatter: title, impact, tags, category
+```
+
+This layering is the point: the rule is simultaneously (a) indexed in the database and injected by the hooks like any other rule, (b) a real per-framework skill that Claude's native skill loading can use even without SkillsDB, and (c) subject to stack activation — the flutter memory skill deactivates in your JS backend. Other projects pick the rules up automatically through their own sync.
+
+`skillsdb forget <R-number>` removes a remembered rule (file, index, and SKILL.md mirror); the matching MCP tool `skillsdb_forget` does the same from conversation.
+
 ## Matching
 
 - One FTS5 virtual table over rule title, text, triggers, and category, with porter stemming.
@@ -154,6 +174,8 @@ skillsdb sync                 # incremental update for changed skill files
 skillsdb watch                # watch skill directories, sync on change
 skillsdb status               # index health, detected stack, counts, staleness
 skillsdb list                 # skills with activation state; --rules, --categories
+skillsdb remember "<rule>"    # save a conversation rule (--project for project scope)
+skillsdb forget <R-number>    # remove a remembered rule
 skillsdb add                  # interactive picker over inactive skills
 skillsdb edit                 # interactive toggle list of all skills
 skillsdb enable <skill>       # force a skill active for this project
@@ -169,6 +191,8 @@ skillsdb uninstall            # remove hook + MCP entries (--purge deletes .skil
 | `skillsdb_match` | Match a task description against the rules database. For work in an area the injected rules do not cover. |
 | `skillsdb_rule_detail` | Full text of one rule by its R-number, with the source file path so the original skill can be read. |
 | `skillsdb_rules_by_category` | All rules of one category, ordered by priority. |
+| `skillsdb_remember` | Persist a rule the user stated in conversation as a generated global memory skill. |
+| `skillsdb_forget` | Remove a remembered rule by R-number. |
 | `skillsdb_categories` | The category taxonomy with rule counts. |
 | `skillsdb_status` | Index health and counts. |
 
