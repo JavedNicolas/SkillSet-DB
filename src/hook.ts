@@ -85,6 +85,10 @@ function handleTextMatch(
   // plan/tasks fire mid-session: only inject rules not already seen.
   // Prompt injections are never filtered (each user message stands alone)
   // but are recorded so later task hooks don't repeat them.
+  // probe BEFORE the no-match early return: a stale index must trigger the
+  // background sync even when this particular prompt matches nothing
+  const stale = staleProbe(db, projectRoot);
+
   if (kind !== 'prompt') {
     const seen = loadInjected(projectRoot, sessionId);
     rules = rules.filter((r) => !seen.has(r.id));
@@ -92,7 +96,7 @@ function handleTextMatch(
   if (rules.length === 0) return;
   recordInjected(projectRoot, sessionId, rules);
 
-  const block = formatRulesBlock(rules, { stale: staleProbe(db, projectRoot), heading: kind });
+  const block = formatRulesBlock(rules, { stale, heading: kind });
   if (kind === 'prompt') {
     process.stdout.write(block + '\n');
   } else {
