@@ -38,6 +38,39 @@ export async function rememberCommand(cwd: string, ruleText: string, options: Re
   }
 }
 
+export interface ImportMemoryOptions {
+  llm?: boolean; // --no-llm => false
+}
+
+/** Convert rule-like entries from Claude's project memory into remembered rules. */
+export async function importMemoryCommand(cwd: string, options: ImportMemoryOptions): Promise<void> {
+  const projectRoot = findProjectRoot(cwd);
+  if (!projectRoot) {
+    console.log('No SkillsDB index found. Run `skillsdb init` in your project.');
+    process.exitCode = 1;
+    return;
+  }
+  const db = openProjectDb(projectDbPath(projectRoot));
+  try {
+    const { importMemoryRules, memoryDirForProject } = await import('../memory/importMemory.js');
+    const { loadConfig } = await import('../config.js');
+    const summary = await importMemoryRules(db, projectRoot, loadConfig(projectRoot), {
+      noLlm: options.llm === false,
+      onProgress: (m) => console.log(m),
+    });
+    if (summary.scanned === 0) {
+      console.log(`No Claude memory found at ${memoryDirForProject(projectRoot)}.`);
+    } else {
+      console.log(
+        `Memory import: ${summary.imported} rule(s) from ${summary.scanned} note(s) ` +
+          `(${summary.skipped} already imported)${summary.method !== 'none' ? ` [${summary.method}]` : ''}.`,
+      );
+    }
+  } finally {
+    db.close();
+  }
+}
+
 export async function forgetCommand(cwd: string, id: string): Promise<void> {
   const projectRoot = findProjectRoot(cwd);
   if (!projectRoot) {

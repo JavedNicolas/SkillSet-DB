@@ -146,6 +146,8 @@ This layering is the point: the rule is simultaneously (a) indexed in the databa
 
 `skillsdb forget <R-number>` removes a remembered rule (file, index, and SKILL.md mirror); the matching MCP tool `skillsdb_forget` does the same from conversation.
 
+**Bootstrap from Claude's memory.** Rules you taught Claude in past sessions live in its per-project memory (`~/.claude/projects/<project>/memory/`). `skillsdb init` imports them automatically: a headless claude call reads the memory notes, keeps only durable instructions (biography and one-off context are dropped), and stores them as project-scoped remembered rules with the right tech bucket. Imported notes are tracked by content hash, so re-running never duplicates — and new memories accumulated later can be pulled in with `skillsdb import-memory`. Without the claude CLI, a deterministic fallback converts each note's description line into one rule.
+
 ## Matching
 
 - One FTS5 virtual table over rule title, text, triggers, and category, with porter stemming.
@@ -176,6 +178,7 @@ skillsdb status               # index health, detected stack, counts, staleness
 skillsdb list                 # skills with activation state; --rules, --categories
 skillsdb remember "<rule>"    # save a conversation rule (--project for project scope)
 skillsdb forget <R-number>    # remove a remembered rule
+skillsdb import-memory        # convert rules from Claude's project memory
 skillsdb add                  # interactive picker over inactive skills
 skillsdb edit                 # interactive toggle list of all skills
 skillsdb enable <skill>       # force a skill active for this project

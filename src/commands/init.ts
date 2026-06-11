@@ -64,6 +64,16 @@ export async function initCommand(cwd: string, options: InitOptions): Promise<vo
     });
     await maybeSelectSkills(db, projectRoot, config, options);
 
+    // bootstrap: rules the user taught Claude in past sessions (Claude memory)
+    const { importMemoryRules } = await import('../memory/importMemory.js');
+    const memory = await importMemoryRules(db, projectRoot, config, {
+      noLlm,
+      onProgress: (m) => console.log(`  ${m}`),
+    });
+    if (memory.imported > 0) {
+      console.log(`Imported ${memory.imported} rule(s) from Claude's project memory [${memory.method}].`);
+    }
+
     console.log(
       `\nSkillsDB ready: ${summary.scanned} skills, ${summary.rules} rules.\n` +
         'Rules matching each prompt are now injected automatically. Try: skillsdb match "your task"',

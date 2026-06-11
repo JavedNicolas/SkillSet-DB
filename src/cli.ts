@@ -100,6 +100,15 @@ program
   });
 
 program
+  .command('import-memory')
+  .description("Convert rules from Claude's project memory into remembered rules")
+  .option('--no-llm', 'Deterministic conversion only (one rule per memory note)')
+  .action(async (opts) => {
+    const { importMemoryCommand } = await import('./commands/remember.js');
+    await importMemoryCommand(process.cwd(), opts);
+  });
+
+program
   .command('forget <ruleId>')
   .description('Remove a remembered rule by its R-number')
   .action(async (ruleId) => {
