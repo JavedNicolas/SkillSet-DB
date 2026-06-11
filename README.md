@@ -1,8 +1,21 @@
+<div align="center">
+
 # SkillsDB
+
+### Turn every Claude Code skill into a searchable rule database — and auto-inject the rules that matter into each prompt
+
+**~50 ms per injection · 0 API calls in the hot path · extraction cached per content hash**
+
+[![npm version](https://img.shields.io/npm/v/skills-db.svg)](https://www.npmjs.com/package/skills-db)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-%E2%89%A5%2020-brightgreen.svg)](https://nodejs.org/)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-hooks_%2B_MCP-blueviolet.svg)](https://docs.claude.com/en/docs/claude-code)
+
+</div>
 
 Rule injection for Claude Code. Every skill you install becomes a database of atomic rules; the rules that apply to the current task are injected into context automatically — at prompt time, plan approval, task creation, subagent spawn, and after compaction.
 
-**~50 ms per injection · 0 API calls in the hot path · extraction cached per content hash**
+> **This first version targets Claude Code only** — it builds on Claude Code's hooks and MCP integration. Support for more agents and editors is on the way.
 
 ## Why SkillsDB
 
